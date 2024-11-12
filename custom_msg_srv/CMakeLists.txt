@@ -10,6 +10,7 @@ project(custom_msg_srv)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  sensor_msgs
   message_generation
 )
 
@@ -57,6 +58,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
    FILES
    InfString.srv
+   InfStringImage.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -70,6 +72,7 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   sensor_msgs
 )
 
 ################################################
@@ -104,7 +107,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES custom_msg_srv
-   CATKIN_DEPENDS rospy std_msgs
+   CATKIN_DEPENDS rospy std_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 
