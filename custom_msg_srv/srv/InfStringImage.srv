@@ -1,4 +1,5 @@
 string question
+sensor_msgs/Image image
 bool chat
 bool reload
 ---
