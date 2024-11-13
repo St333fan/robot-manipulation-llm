@@ -1,5 +1,7 @@
+# Request
 string question
 bool chat
 bool reload
 ---
+# Response
 string answer

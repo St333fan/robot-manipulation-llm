@@ -1,0 +1,5 @@
+# Request
+sensor_msgs/Image image    # Input image for inference
+---
+# Response
+DetectedObject[] objects   # Array of detected objects
