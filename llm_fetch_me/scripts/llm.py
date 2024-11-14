@@ -2,7 +2,6 @@
 
 import rospy
 import ollama
-from std_srvs.srv import Trigger, TriggerResponse
 from custom_msg_srv.srv import InfString, InfStringResponse
 
 class LLMBrain:
@@ -51,6 +50,6 @@ class LLMBrain:
         self.messages.append({'role': 'system', 'content': self.system_prompt})
 
 if __name__ == "__main__":
-    brain = LLMBrain(model_name='llama3.1:latest', system_prompt='You are a dog wuff wuff')
+    brain = LLMBrain(system_prompt='You are a dog wuff wuff') # odel_name='llama3.1:latest',
     brain.start_service()
 

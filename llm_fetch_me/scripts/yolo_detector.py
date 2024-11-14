@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from sensor_msgs.msg import Image
 from ultralytics import YOLO, YOLOWorld
 import torch
 import rospy
@@ -11,7 +10,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 class YoloBrain:
-    def __init__(self, model_name='yolov8s-world.pt', sub_topic='', class_names=['bottle']):
+    def __init__(self, model_name='yolov8m-worldv2.pt', sub_topic='', class_names=['bottle']):
         # Check if CUDA is available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         rospy.loginfo(f"Using device: {self.device}")
@@ -23,20 +22,25 @@ class YoloBrain:
         # Set custom classes
         self.model.set_classes(class_names)
         self.image = None
+        self.depth_image = None
 
         # Initialize the CvBridge
         self.bridge = CvBridge()
         # Subscribe to the camera topic
         if sub_topic != '':
-            self.image_sub = rospy.Subscriber(sub_topic, Image, self.callback)
+            self.image_sub = rospy.Subscriber(sub_topic, Image, self.image_callback)
+        self.depth_sub = rospy.Subscriber('/xtion/depth_registered/image_raw', Image, self.depth_callback)
 
-    def callback(self, data):
+    def image_callback(self, data):
         try:
             # Convert ROS Image message to OpenCV image
             self.image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except Exception as e:
             rospy.logerr(e)
         return
+        
+    def depth_callback(self, data):
+        self.depth_image = self.bridge.imgmsg_to_cv2(data, desired_encoding="passthrough")
 
     def handle_inference(self, req):
         print("Service call received: Starting YOLO model inference")
@@ -57,6 +61,13 @@ class YoloBrain:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
                 msg.bbox = [x1, y1, x2, y2]
+                
+                # Convert the depth value to meters
+                x = int((x2-x1)/2) + x1
+                y = int((y2-y1)/2) + y1
+                depth_value = self.depth_image[y, x]
+                msg.depth = depth_value
+                
                 detected_objects.append(msg)
         return InfYoloResponse(objects=detected_objects)
 
