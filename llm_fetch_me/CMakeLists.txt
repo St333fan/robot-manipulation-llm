@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_srvs
   custom_msg_srv
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -74,6 +75,7 @@ generate_messages(
     DEPENDENCIES
     std_msgs  # Or other packages containing msgs
     std_srvs
+    sensor_msgs
 )
 
 ################################################
@@ -108,7 +110,7 @@ generate_messages(
 catkin_package(
   #INCLUDE_DIRS include
 #  LIBRARIES llm_fetch_me
-  CATKIN_DEPENDS rospy std_msgs std_srvs
+  CATKIN_DEPENDS rospy std_msgs std_srvs sensor_msgs
 #  CATKIN_DEPENDS message_runtime 
 #  DEPENDS system_lib
 )
@@ -166,6 +168,8 @@ include_directories(
 catkin_install_python(PROGRAMS
    scripts/vit_detector.py
    scripts/llm.py
+   scripts/yolo_detector.py
+   scripts/robot_brain_node.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

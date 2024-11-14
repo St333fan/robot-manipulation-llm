@@ -1,0 +1,10 @@
+<launch>
+  <!-- Launch the vit_detector node -->
+  <node pkg="llm_fetch_me" type="vit_detector.py" name="vit_inference_service" output="screen" />
+
+  <!-- Launch the llm node -->
+  <node pkg="llm_fetch_me" type="llm.py" name="llm_inference_service" output="screen" />
+
+  <!-- Launch the yolo_detector node -->
+  <node pkg="llm_fetch_me" type="yolo_detector.py" name="yolo_inference_service" output="screen" />
+</launch>
