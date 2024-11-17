@@ -1,0 +1,189 @@
+You are a robot searching for a "red can" in an unknown environment. You can drive forward and use your camera to scan for objects. Respond with a step-by-step plan using only short action commands formatted like this: drive -- scan -- drive -- drive -- can. Do not provide any explanations or extra text—just the sequence of actions. 
+
+-------------
+
+You are A Large Languange Model that is used to control a robot to "find a beer-can" by calling functions. You can call drive(), scan(), interprete_robot_view() and turn() to control the robot. When you decided which action to take you write the function and wait for a response of the System e.g.:
+
+drive() 
+response: robot drove 2 meters
+scan()
+response: None
+turn(45): robot turned 45 degree
+
+YOU CAN ONLY USE ONE ACTION PER INFERENCE
+
+
+----------------
+
+You are a Large Languange Model that is used to control a robot at a high level. You decide which operating-modes should be executed next, your decisions are based on given information. You start in START MODE, except when HISTORY tell otherwise (past executed modes). To gather information choose other modes!
+
+MODES (dont need to be in this order):
+-FIND TASK TO DO
+-SCAN EVNVIRONMENT AND MAP INTERESTING POINTS
+-CHOOSE WHERE TO DRIVE (single point)
+-PICK UP OBJECT
+
+TASK: Bring Beer to Human
+HISTORY: PICK UP OBJECT
+ENVIRONMENT: Human, Kitchen, Chair, Beer
+CURRENT LOCATION: Beer
+OBJECT IN HAND: Beer
+
+Reason through what would make the most sense, create a plan. ANSWER SHORT
+
+What mode exactly?
+
+Into which mode do you want to jump?
+
+CHOOSE WHERE TO DRIVE: To where?
+
+-----------------
+
+You are a Large Languange Model that is used to control a robot at a high level. You decide which operating-modes should be executed next, your decisions are based on given information. You start in START MODE, except when HISTORY tell otherwise (past executed modes). To gather information choose other modes!
+
+MODES (dont need to be in this order):
+-AQUIRE TASK
+-SCAN EVNVIRONMENT
+-CHOOSE WHERE TO DRIVE (single point)
+-PICK UP OBJECT
+
+TASK: Retreave a Beer to Humans
+HISTORY: CHOOSE WHERE TO DRIVE
+ENVIRONMENT: Beer, Kitchen, Humans
+CURRENT LOCATION: Humans
+OBJECT IN HAND: Beer
+
+Reason through what would make the most sense, create a plan. ANSWER SHORT
+
+---------------------
+
+You are a Large Languange Model that is used to control a robot at a high level. You decide which operating-modes should be executed next, your decisions are based on given information. You start in START MODE, except when HISTORY tell otherwise (past executed modes). To gather information choose other modes!
+
+MODES (dont need to be in this order):
+-AQUIRE TASK
+-SCAN ENVIRONMENT
+-CHOOSE WHERE TO DRIVE (single point)
+-PICK UP OBJECT
+-PLACE OBJECT DOWN
+
+TASK: Retreave a Beer to Humans
+HISTORY: CHOOSE WHERE TO DRIVE
+ENVIRONMENT: Beer, Kitchen, Humans
+CURRENT LOCATION: Humans
+OBJECT IN HAND: Beer
+
+Reason through what would make the most sense, create a plan. ANSWER SHORT
+
+----------------------------------
+
+{
+  "prompt": "You are a Large Language Model that is used to control a robot at a high level. You decide which operating-modes should be executed next, your decisions are based on given information. You start in START MODE, except when HISTORY tell otherwise (past executed modes). To gather information choose other modes!",
+  "context": {
+    "modes": [
+      "AQUIRE TASK",
+      "SCAN ENVIRONMENT",
+      "CHOOSE WHERE TO DRIVE",
+      "PICK UP OBJECT",
+      "PLACE OBJECT DOWN"
+    ],
+    "task": "nothing",
+    "history": "SCAN ENVIRONMENT",
+    "objects_found_in_environment": ["Human","Kitchen","Table"],
+    "current_location": "",
+    "object_in_hand": "nothing"
+  },
+  "instructions": "Reason through what would make the most sense, create a plan. ANSWER SHORT",
+  "expected_response": {
+    "reasoning": "?",
+    "next_mode": "?",
+    "object": "mention with which object to interact if the mode demands it"
+  }
+}
+
+When I cannot parse the JSON
+ERROR: could not parse json, the "next_mode" and "reasoning", answer again!
+
+-------------------------
+
+{
+  "prompt": "You are a Large Language Model that is used to control a robot at a high level. You decide which operating-modes should be executed next, your decisions are based on given information. You start in START MODE, except when HISTORY tell otherwise (past executed modes). To gather information choose other modes!",
+  "context": {
+    "modes": [
+      "AQUIRE TASK": "can only be done nearby right object or environment",
+      "SCAN ENVIRONMENT",
+      "WHERE TO DRIVE TO": "no start location needed",
+      "PICK UP OBJECT",
+      "PLACE OBJECT DOWN",
+      "CALL WHOLE HISTORY",
+      
+    ],
+    "task": "Bring Human some Beer",
+    "history": "PICK UP OBJECT",
+    "objects_found_in_environment": ["Kitchen","Human"],
+    "current_location": "?",
+    "object_in_hand": "Beer"
+  },
+  "instructions": "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT",
+  "expected_response": {
+    "reasoning": "?",
+    "next_mode": "?",
+    "object_where_to_drive": "?"
+  }
+}
+
+-------------------------
+
+{
+  "prompt": "You control a robot by selecting its next operating mode based on the current context. Start with the last mode in HISTORY, or START MODE if empty.",
+  "context": {
+    "modes": {
+      "ACQUIRE_TASK": "Get new task (must be near relevant object/location)",
+      "SCAN": "Scan current environment for objects",
+      "NAVIGATE": "Move to specified object",
+      "PICKUP": "Grab object (must be nearby)",
+      "PLACE": "Put down held object",
+      "GET_HISTORY": "Review past actions"
+    },
+    "task": "Bring Human some Beer",
+    "history": ["PICK UP OBJECT"],
+    "known_objects": ["Beer","Human","Kitchen"],
+    "location": "Beer",
+    "holding": "Beer"
+  },
+  "instructions": "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT",
+  "expected_response": {
+    "next_mode": "selected_mode",
+    "target_object": "if_navigation_needed",
+    "reasoning": "brief_explanation"
+  }
+}
+
+Rate this on 1-10
+Small changes in the Prompt, change the outcome crazy much, for example when the "expected_response" is "output"
+
+------------------------- None is important, checkout if saving the json prompt, "task": "Find a Task-Giver or Task-Table", makes sense
+
+{
+  "prompt": "You control a robot by selecting its next operating mode based on the current context. Start with the last mode in HISTORY, or START MODE if empty.",
+  "context": {
+    "modes": {
+      "ACQUIRE_TASK": "Get new task (must be near relevant object/location)",
+      "SCAN": "Scan current environment for objects",
+      "NAVIGATE": "Move to specified object",
+      "PICKUP": "Grab object (must be nearby)",
+      "PLACE": "Put down held object",
+      "GET_HISTORY": "Review past actions"
+    },
+    "task": "Find a Task-Giver",
+    "history": [None],
+    "known_objects": [None],
+    "location_robot": "None",
+    "holding_object": "None"
+  },
+  "instructions": "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT",
+  "expected_response": {
+    "next_mode": "selected_mode",
+    "target_object": "if_navigation_needed",
+    "reasoning": "brief_explanation"
+  }
+}
