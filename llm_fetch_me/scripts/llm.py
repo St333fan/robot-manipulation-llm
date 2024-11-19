@@ -18,20 +18,20 @@ class LLMBrain:
             self.reload()
             
         if req.chat:
-            return InfStringResponse(answer=self.chat(req.question))
-        return InfStringResponse(answer=self.generate_response(req.question))
+            return InfStringResponse(answer=self.chat(prompt=req.question))
+        return InfStringResponse(answer=self.generate_response(prompt=req.question))
 
     def start_service(self, nodeName='llm_inference_service', servName='llm_inference'):
         rospy.init_node(nodeName)
         s = rospy.Service(servName, InfString, self.handle_inference)
         rospy.spin()
 
-    def generate_response(self, prompt):
-        response = ollama.generate(model=self.model_name, prompt=prompt, system=self.system_prompt, keep_alive=self.keep_alive)
+    def generate_response(self, prompt, format="json", temperature=0.0):
+        response = ollama.generate(model=self.model_name, prompt=prompt, system=self.system_prompt, keep_alive=self.keep_alive, format=format, options={"temperature": temperature})
         generated_text = response['response']
         return generated_text
      
-    def chat(self, prompt):
+    def chat(self, prompt, format="json", temperature=0.0):
 
         self.messages.append({'role': 'user', 'content': prompt})
         
@@ -39,6 +39,8 @@ class LLMBrain:
             model=self.model_name,
             messages=self.messages,
             keep_alive=self.keep_alive,
+            format=format,
+            options={"temperature": temperature}
         )
 
         generated_text = response['message']['content']
@@ -50,6 +52,11 @@ class LLMBrain:
         self.messages.append({'role': 'system', 'content': self.system_prompt})
 
 if __name__ == "__main__":
-    brain = LLMBrain(system_prompt='You are a dog wuff wuff') # odel_name='llama3.1:latest',
+    # Read the content of the text file
+    #with open('~/exchange/lmt_ws/src/llm_fetch_me/scripts/system_prompt.txt', 'r', encoding='utf-8') as file:
+        #system_prompt = file.read()
+    system_prompt = "You are the brain of a robot; you make decisions based on a given task and are able to decide what to do... When thinking through a problem, you go by it direct and coldhearted, but you always think like a learner/child/discoverer; if you are not certain about a decision, you may make an educated guess. Additionally, you answer directly and understandably no blabla"
+
+    brain = LLMBrain(model_name="llama3.1:8b-instruct-q2_K") # model_name='llama3.1:latest', model_name='gemma2:9b-instruct-q8_0', 
     brain.start_service()
 
