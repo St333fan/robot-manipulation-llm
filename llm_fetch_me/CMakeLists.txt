@@ -76,6 +76,7 @@ generate_messages(
     std_msgs  # Or other packages containing msgs
     std_srvs
     sensor_msgs
+    geometry_msgs
 )
 
 ################################################
@@ -110,7 +111,7 @@ generate_messages(
 catkin_package(
   #INCLUDE_DIRS include
 #  LIBRARIES llm_fetch_me
-  CATKIN_DEPENDS rospy std_msgs std_srvs sensor_msgs
+  CATKIN_DEPENDS rospy std_msgs std_srvs sensor_msgs geometry_msgs
 #  CATKIN_DEPENDS message_runtime 
 #  DEPENDS system_lib
 )
@@ -170,6 +171,7 @@ catkin_install_python(PROGRAMS
    scripts/llm.py
    scripts/yolo_detector.py
    scripts/robot_brain_node.py
+   scripts/robot_brain_node_advanced.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
