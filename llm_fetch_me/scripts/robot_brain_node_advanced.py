@@ -10,6 +10,7 @@ from sensor_msgs.msg import Image
 import time
 import json
 import re
+import sys
 
 def call_vit_service():
     try:
@@ -18,9 +19,10 @@ def call_vit_service():
         
         # Create a request object
         request = InfStringRequest()
-        request.question = "what do you see"
+        request.question = json.dumps({"prompt":"What happens in the image and what objects can you see? SUPER SHORT ANSWER",
+                            "expected_response":{"objects":"object_you_see","environment":"environment_you_see"}})
         request.chat = False
-        request.reload = False
+        request.reload = True
         
         response = vit_service(request)
         rospy.loginfo("Vit called successfully.")
@@ -97,34 +99,36 @@ def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, ang
 
 ## I tried unstructured but it is trash
 def main(): # add a Hoistory of some past taken actions and add a time to them
+    print("Start... \n\n")
+    print(call_vit_service())
+    sys.exit()
+
     is_start = True
     # Define variables for different sections
     modes = {
-        "ASK_FOR_TASK": "Get new task (must be near relevant object/location)",
-        "SCAN": "Scan current environment for objects",
+        "SPEECH": "Only possbile nearby a Human in handshake distance",
+        "SCAN": "Scan environment for objects and humans",
         "NAVIGATE": "Move to specified object",
-        "PICKUP": "Grab object (must be nearby)",
-        "PLACE": "Put down held object",
-        "GET_HISTORY": "Review past actions"
+        "PICKUP": "Grab object, location_robot must be at object",
+        "PLACE": "Put down held object"
     }
 
-    prompt = "You control a robot by selecting its next operating mode based on the current context. Start with the last mode in HISTORY, or START MODE if empty."
-
-    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
-
+    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
+    prompt = "You operate a robot by choosing its next mode of operation based on the current context and task requirements. Focus on completing the specified task efficiently. Start from the most recent mode in HISTORY, or default to START MODE if HISTORY is empty."
+    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"#"Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
+    instructions = "Analyze the situation logically and determine the most suitable next mode. If prerequisites for the desired mode are fulfilled, develop a concise plan of action. Respond succinctly."
     expected_response = {
-        "reasoning": "brief_explanation_based_on_the_given_information",
+        "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "if_navigation_needed",
-        "judge": "brief_rating_of_1-10"
+        "target_object": "if_navigation_needed", #if_navigation_needed
     }
 
     # Variables for context
-    robot_current_task = "Scan/find/drive to Human and get a Task"
-    recent_actions = ["None"]  # Empty history
-    detected_objects = ["None"]  # Empty known objects list
-    current_location = None  # No specific location
-    current_held_object = None  # Not holding anything
+    robot_current_task = "None"
+    recent_mode = "None"  # Empty history
+    detected_objects = [["",""]]  # Empty known objects list
+    current_location = "None"  # No specific location
+    current_held_object = "None"  # Not holding anything
 
     parse_error = False
 
@@ -138,10 +142,10 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
         context = {
             "modes": modes,
             "task": robot_current_task,
-            "history": recent_actions,
+            "history": recent_mode,
             "known_objects": detected_objects,
             "location_robot": current_location,
-            "holding_object": current_held_object
+            "holding_object": current_held_object,
         }
 
         # Construct the full JSON object
@@ -156,8 +160,9 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
             call_llm_service("ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again!", reload=False)
             parse_error = False
         else:
-            llm_answer = call_llm_service(question=json.dumps(question), reload=False)
-        print(json.dumps(question))
+            que = json.dumps(question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
+            llm_answer = call_llm_service(question=que, reload=False)
+        print(que)
         print(llm_answer)
 
         # Extract JSON using regex
@@ -173,12 +178,11 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
                 next_mode = response["next_mode"]
                 target_object = response["target_object"]
                 reasoning = response["reasoning"]
-                rated = response["judge"]
 
                 print(f"Reasoning: {reasoning}")
                 print(f"Next mode: {next_mode}")
                 print(f"Target object: {target_object}")
-                print(f"Rate: {rated}")
+                #print(f"Rate: {rated}")
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
@@ -186,17 +190,23 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
             next_mode = ""
             print("No JSON object found in the response.")
 
-        if next_mode == "ASK_FOR_TASK":
+        if next_mode == "SPEECH":
             print("Acquiring a new task...")
-            robot_current_task = "Bring the Human a Beer"
+            robot_current_task = "Bring the Human a Beer and give it to him"
             # Add logic to acquire a new task
         elif next_mode == "SCAN":
             print("Scanning the environment...")
-            detected_objects = ["Kitchen", "Human", "Beer"]
+            detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
             # Add logic to scan the environment
         elif next_mode == "NAVIGATE":
             print("Navigating to the specified object...")
             current_location = target_object  # No specific location
+            if target_object =="Human":
+                detected_objects = [["Human", "30cm away"], ["Beer", "8m away"], ["Kitchen", "5m away"]]
+            elif target_object =="Kitchen":
+                detected_objects = [["Human", "5m away"], ["Beer", "8m away"], ["Kitchen", "30cm away"]]
+            elif target_object =="Beer":
+                detected_objects = [["Human", "5m away"], ["Beer", "30cm away"], ["Kitchen", "5m away"]]
             # Add navigation logic
         elif next_mode == "PICKUP":
             current_held_object = target_object
@@ -206,9 +216,6 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
             print("Placing the object...")
             break
             # Add logic to place the object
-        elif next_mode == "GET_HISTORY":
-            print("Retrieving history of actions...")
-            # Add logic to get history
         else:
             print(f"Unknown mode: {next_mode}")
             parse_error = True
@@ -216,7 +223,7 @@ def main(): # add a Hoistory of some past taken actions and add a time to them
 
         # Variables for context
         #robot_current_task = "Find a Task-Giver"
-        recent_actions = [next_mode]  # Empty history
+        recent_modes = next_mode #question["context"]["previous_modes"]+"-->"+str(next_mode)  # Empty history
         #detected_objects = []  # Empty known objects list
         #current_location = None  # No specific location
         #current_held_object = None  # Not holding anything
