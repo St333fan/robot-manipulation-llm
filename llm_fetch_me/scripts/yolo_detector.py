@@ -10,7 +10,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 class YoloBrain:
-    def __init__(self, model_name='yolov8m-worldv2.pt', sub_topic='', class_names=['bottle']):
+    def __init__(self, model_name='yolov8x-worldv2.pt', sub_topic='', class_names=['bottle']):
         # Check if CUDA is available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         rospy.loginfo(f"Using device: {self.device}")
@@ -44,8 +44,13 @@ class YoloBrain:
 
     def handle_inference(self, req):
         print("Service call received: Starting YOLO model inference")
+        print(req.classes)
+        self.class_names = req.classes
+        # Set custom classes
+        self.model.set_classes(self.class_names)
+
         # Run YOLOWorld inference on the image
-        results = self.model.predict(self.image, conf=0.25, device=self.device)  # Use the selected device
+        results = self.model.predict(self.image, conf=req.confidence, device=self.device,)# imgsz=1280)  # Use the selected device
 
         # Create a list to hold DetectedObject instances
         detected_objects = []

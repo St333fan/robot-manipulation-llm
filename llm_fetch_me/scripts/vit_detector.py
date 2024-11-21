@@ -18,7 +18,7 @@ from cv_bridge import CvBridge
 '''
 
 class VisionBrain:
-    def __init__(self, model_name="minicpm-v:8b-2.6-q2_K", system_prompt="", keep_alive='10s', sub_topic=''): #minicpm-v:8b-2.6-fp16
+    def __init__(self, model_name="minicpm-v:8b", system_prompt="", keep_alive='10s', sub_topic=''): #minicpm-v:8b-2.6-fp16
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.keep_alive = keep_alive
@@ -55,8 +55,8 @@ class VisionBrain:
         s = rospy.Service(servName, InfString, self.handle_inference)
         rospy.spin()
 
-    def generate_response(self, prompt, image):
-        response = ollama.generate(model=self.model_name, prompt=prompt, system=self.system_prompt, keep_alive=self.keep_alive, images=[image])
+    def generate_response(self, prompt, image, temperature=0.0):
+        response = ollama.generate(model=self.model_name, prompt=prompt, system=self.system_prompt, keep_alive=self.keep_alive, images=[image], options={"temperature": temperature})
         generated_text = response['response']
         return generated_text
      

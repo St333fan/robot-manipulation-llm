@@ -217,10 +217,18 @@ def aquire_task():
             print(f"reasoning: {reasoning}")
         except json.JSONDecodeError as e:
             print("Error decoding JSON:", e)
+            return "Error decoding JSON:"
     else:
         print("No JSON object found in the response.")
-        return reasoning
+        return "No JSON object found in the response."
+
+    if get_attention == "yes": # need to add speech input
+        task = "Bring the Human a Bottle"
+
     return task
+
+def object_distance():
+    return None
 
 ## I tried unstructured but it is trash
 def main(): # add a History of some past taken actions and add a time to them
