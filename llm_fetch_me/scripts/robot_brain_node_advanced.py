@@ -4,6 +4,7 @@ import rospy
 from custom_msg_srv.srv import InfString, InfStringRequest
 from custom_msg_srv.srv import InfYolo, InfYoloRequest
 from custom_msg_srv.msg import DetectedObject
+from fontTools.ttLib.tables.ttProgram import instructions
 from geometry_msgs.msg import Twist
 from numpy.lib.type_check import isreal
 from sensor_msgs.msg import Image
@@ -12,6 +13,9 @@ import json
 import re
 import sys
 
+from sympy.codegen.ast import continue_
+
+
 def call_vit_service():
     try:
         rospy.wait_for_service('/vit_inference')
@@ -19,8 +23,9 @@ def call_vit_service():
         
         # Create a request object
         request = InfStringRequest()
-        request.question = json.dumps({"prompt":"What happens in the image and what objects can you see? SUPER SHORT ANSWER",
-                            "expected_response":{"objects":"object_you_see","environment":"environment_you_see"}})
+        request.question = "What happens in the image and what objects can you see? SUPER SHORT ANSWER"
+        #json.dumps({"prompt":"What happens in the image and what objects can you see? SUPER SHORT ANSWER",
+                            #"expected_response":{"objects":"object_you_see","environment":"environment_you_see"}})
         request.chat = False
         request.reload = True
         
@@ -47,27 +52,36 @@ def call_llm_service(information="", reload=False, question=''):
         rospy.logerr("Failed to call LLM service: %s" % e)
     return response.answer
 
-def call_yolo_service():
+def call_yolo_service(classes=["bottle"]):
     try:
         rospy.wait_for_service('/yolo_inference')
         trigger_service = rospy.ServiceProxy('/yolo_inference', InfYolo)
-        
+        print(classes)
+
         # Create a request object
         request = InfYoloRequest()
         img = Image()
         request.image = img
+        request.classes = classes
+        request.confidence = 0.1
         
-        response = trigger_service(InfYoloRequest())
+        response = trigger_service(request)
         rospy.loginfo("Yolo called with response:")
     except rospy.ServiceException as e:
         rospy.logerr("Failed to call Yolo service: %s" % e)
-        
-     # Check if the 'objects' list is not empty
+        return None
+
+        # Initialize an empty list to store the objects
+    obj = []
+
+    # Check if the 'objects' list is not empty
     if response.objects:
-        return response.objects[0].class_name + " -- " + str(response.objects[0].depth)
+        for detected_object in response.objects:
+            # Append each object's class_name and depth as a sublist
+            obj.append([detected_object.class_name, detected_object.depth])
     else:
         print("No objects detected in the response")
-        return None
+    return obj
        
 # Function to publish a message to the /mobile_base_controller/cmd_vel topic
 def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, angular_y=0.0, angular_z=0.0, duration=1.0):
@@ -97,9 +111,63 @@ def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, ang
     pub.publish(stop_cmd)
     rospy.loginfo("Stopped publishing")
 
+def scan_environment():
+    print("VIT")
+    vit_results = call_vit_service()
+
+    prompt = "Extract all key objects(humans are objects too!) and environments from the Vision Transformer's scene description. Focus on common objects and spaces in a room."
+    context = {"vit_results":vit_results}
+    instructions = "Reason through what would make the most sense which objects/spaces are needed. Convert synonyms to common terms (e.g., 'people' to 'human') ANSWER SHORT"
+    expected_response={
+        "reasoning": "brief_explanation",
+        "detect_objects": "[\"relevant_objects\"]",
+        "detect_space": "[\"relevant_higher_level_spaces(e.g.kitchen/bedroom/etc\"]"
+    }
+
+    question = {
+        "prompt": prompt,
+        "context": context,
+        "instructions": instructions,
+        "expected_response": expected_response
+    }
+    print(vit_results)
+    print(expected_response) #+ "\n\n" + json.dumps(question["instructions"])
+    que = json.dumps(question)
+    llm_answer = call_llm_service(question=que, reload=True)
+    #llm_answer = call_llm_service(question="Responde with the json format", reload=False)
+    print(llm_answer)
+    # Extract JSON using regex
+    json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
+
+    if json_match:
+        json_string = json_match.group()
+        try:
+            # Parse the JSON
+            response = json.loads(json_string)
+
+            # Access the elements
+            detect_objects = response["detect_objects"]
+            detect_space = response["detect_space"]
+            reasoning = response["reasoning"]
+
+            print(f"Reasoning: {reasoning}")
+            print(f"Obj: {detect_objects}")
+            print(f"Spaces: {detect_space}")
+            # print(f"Rate: {rated}")
+
+        except json.JSONDecodeError as e:
+            print("Error decoding JSON:", e)
+    else:
+        print("No JSON object found in the response.")
+        return None
+
+    return call_yolo_service(detect_objects)
+
 ## I tried unstructured but it is trash
 def main(): # add a Hoistory of some past taken actions and add a time to them
     print("Start... \n\n")
+    print(scan_environment())
+    sys.exit()
     print(call_vit_service())
     sys.exit()
 
