@@ -12,18 +12,19 @@ import time
 import json
 import re
 import sys
+import ast
 
 from sympy.codegen.ast import continue_
 
 
-def call_vit_service():
+def call_vit_service(question="What happens in the image and what objects can you see? SUPER SHORT ANSWER"):
     try:
         rospy.wait_for_service('/vit_inference')
         vit_service = rospy.ServiceProxy('/vit_inference', InfString)
         
         # Create a request object
         request = InfStringRequest()
-        request.question = "What happens in the image and what objects can you see? SUPER SHORT ANSWER"
+        request.question = question
         #json.dumps({"prompt":"What happens in the image and what objects can you see? SUPER SHORT ANSWER",
                             #"expected_response":{"objects":"object_you_see","environment":"environment_you_see"}})
         request.chat = False
@@ -35,7 +36,7 @@ def call_vit_service():
         rospy.logerr("Failed to call Vit service: %s" % e)
     return response.answer
 
-def call_llm_service(information="", reload=False, question=''):
+def call_llm_service(information="", reload=False, question='', chat=True):
     try:
         rospy.wait_for_service('/llm_inference')
         llm_service = rospy.ServiceProxy('/llm_inference', InfString)
@@ -43,7 +44,7 @@ def call_llm_service(information="", reload=False, question=''):
         # Create a request object
         request = InfStringRequest()
         request.question = question
-        request.chat = True
+        request.chat = chat
         request.reload = reload
         
         response = llm_service(request)
@@ -111,7 +112,7 @@ def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, ang
     pub.publish(stop_cmd)
     rospy.loginfo("Stopped publishing")
 
-def scan_environment():
+def scan_environment(task_objects=["bottle"]):
     print("VIT")
     vit_results = call_vit_service()
 
@@ -133,7 +134,7 @@ def scan_environment():
     print(vit_results)
     print(expected_response) #+ "\n\n" + json.dumps(question["instructions"])
     que = json.dumps(question)
-    llm_answer = call_llm_service(question=que, reload=True)
+    llm_answer = call_llm_service(question=que, chat=False)
     #llm_answer = call_llm_service(question="Responde with the json format", reload=False)
     print(llm_answer)
     # Extract JSON using regex
@@ -146,7 +147,8 @@ def scan_environment():
             response = json.loads(json_string)
 
             # Access the elements
-            detect_objects = response["detect_objects"]
+            detect_objects = response["detect_objects"]+task_objects
+            #detect_objects.append(response["detect_objects"])
             detect_space = response["detect_space"]
             reasoning = response["reasoning"]
 
@@ -159,16 +161,73 @@ def scan_environment():
             print("Error decoding JSON:", e)
     else:
         print("No JSON object found in the response.")
-        return None
+        return call_yolo_service(task_objects)
 
     return call_yolo_service(detect_objects)
+    #return call_yolo_service(["bottle","table","white object"])
+
+def aquire_task():
+    task = ""
+    human_response = "None"
+    vit_results = call_vit_service(question="Do the humans look towards the camera?")
+
+    prompt = "Determine if human is actively ready to interact based on visual cues. Use the results from a ViT."
+    context = {"vit_results": vit_results,
+               "human_response":human_response}
+
+    instructions = "Reason through what would make the most sense, decide if you should start speaking with them, if yes, ask them for a task. The human needs to look at you activly! ANSWER SHORT"
+    expected_response = {
+        "reasoning": "brief_explanation",
+        "speech": "only_yes_or_no",
+        "get_attention": "only_yes_or_no",
+        "question": "potential_question"
+    }
+
+    question = {
+        "prompt": prompt,
+        "context": context,
+        "instructions": instructions,
+        "expected_response": expected_response
+    }
+    print(vit_results)
+    print(expected_response)  # + "\n\n" + json.dumps(question["instructions"])
+    que = json.dumps(question)
+    llm_answer = call_llm_service(question=que, chat=False)
+
+    # llm_answer = call_llm_service(question="Responde with the json format", reload=False)
+    print(llm_answer)
+    # Extract JSON using regex
+    json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
+
+    if json_match:
+        json_string = json_match.group()
+        try:
+            # Parse the JSON
+            response = json.loads(json_string)
+
+            # Access the elements
+            get_attention = response["get_attention"]
+            question = response["question"]
+            get_speech = response["speech"]
+            reasoning = response["reasoning"]
+
+            print(f"get_attention: {get_attention}")
+            print(f"question: {question}")
+            print(f"get_speech: {get_speech}")
+            print(f"reasoning: {reasoning}")
+        except json.JSONDecodeError as e:
+            print("Error decoding JSON:", e)
+    else:
+        print("No JSON object found in the response.")
+        return reasoning
+    return task
 
 ## I tried unstructured but it is trash
-def main(): # add a Hoistory of some past taken actions and add a time to them
+def main(): # add a History of some past taken actions and add a time to them
     print("Start... \n\n")
-    print(scan_environment())
-    sys.exit()
-    print(call_vit_service())
+    print(aquire_task())
+    #print(scan_environment())
+    #print(call_vit_service())
     sys.exit()
 
     is_start = True
