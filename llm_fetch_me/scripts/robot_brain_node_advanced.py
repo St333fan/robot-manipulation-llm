@@ -8,12 +8,16 @@ from fontTools.ttLib.tables.ttProgram import instructions
 from geometry_msgs.msg import Twist
 from numpy.lib.type_check import isreal
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from tf.transformations import quaternion_from_euler
+import math
 import time
 import json
+import yaml
+import numpy as np
 import re
 import sys
 import ast
-
 from sympy.codegen.ast import continue_
 
 
@@ -227,16 +231,137 @@ def aquire_task():
 
     return task
 
+def send_rotation_goal(goal_pub, angle_degrees):
+    """
+    Sends a rotation goal using current position from /robot_pose and desired angle.
+
+    Args:
+        angle_degrees (float): Desired rotation angle in degrees
+    """
+    try:
+        # Get current robot position
+        current_pose = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
+
+        # Create goal with current position
+        goal = PoseStamped()
+        goal.header.stamp = rospy.Time.now()
+        goal.header.frame_id = "map"
+
+        # Use current x, y, z position
+        goal.pose.position.x = current_pose.pose.pose.position.x
+        goal.pose.position.y = current_pose.pose.pose.position.y
+        goal.pose.position.z = current_pose.pose.pose.position.z
+
+        # Set new orientation for rotation
+        angle_rad = math.radians(angle_degrees)
+        quaternion = quaternion_from_euler(0, 0, angle_rad)
+        print(quaternion)
+        goal.pose.orientation.x = quaternion[0]
+        goal.pose.orientation.y = quaternion[1]
+        goal.pose.orientation.z = quaternion[2]
+        goal.pose.orientation.w = quaternion[3]
+        #goal_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+        rospy.sleep(2)  # Ensure connection is established
+        # Publish goal
+        goal_pub.publish(goal)
+
+
+        rospy.loginfo(f"Rotating to {angle_degrees} degrees at current position: "
+                     f"x={goal.pose.position.x:.2f}, y={goal.pose.position.y:.2f}")
+
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
+
 def object_distance():
+    try:
+        # Get current robot position
+        current_pose = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
+
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
+
     return None
+
+def point_to_edge_distance_with_buffer(point, edge_start, edge_end, buffer_distance):
+    """
+    Compute the closest point on an edge to a given point and adjust it with a buffer.
+    """
+    edge = edge_end - edge_start
+    edge_length_squared = np.dot(edge, edge)
+    if edge_length_squared == 0:  # Edge start and end are the same point
+        closest_point = edge_start
+    else:
+        # Project point onto the line (parameterized by t)
+        t = np.dot(point - edge_start, edge) / edge_length_squared
+        t = np.clip(t, 0, 1)  # Clamp t to stay within the edge segment
+
+        # Find the closest point on the edge
+        closest_point = edge_start + t * edge
+
+    # Adjust the closest point outward by buffer_distance
+    edge_normal = np.array([-edge[1], edge[0]])  # Perpendicular vector
+    edge_normal = edge_normal / np.linalg.norm(edge_normal)  # Normalize
+
+    buffer_adjusted_point = closest_point + buffer_distance * edge_normal
+    distance = np.linalg.norm(point - buffer_adjusted_point)
+    return buffer_adjusted_point, distance
+
+def find_nearest_outside_point_with_buffer(polygon, point_inside, buffer_distance):
+    """
+    Find the nearest point outside the polygon to the given point inside, with a buffer.
+    """
+    closest_point = None
+    min_distance = float('inf')
+
+    # Iterate over the polygon's edges
+    for i in range(len(polygon)):
+        edge_start = polygon[i]
+        edge_end = polygon[(i + 1) % len(polygon)]  # Wrap around to form edges
+        candidate_point, distance = point_to_edge_distance_with_buffer(point_inside, edge_start, edge_end,
+                                                                       buffer_distance)
+        if distance < min_distance:
+            min_distance = distance
+            closest_point = candidate_point
+
+    return closest_point
+
+def parse_table_coordinates(yaml_file):
+    """
+    Parse table coordinates from YAML file.
+    """
+    with open(yaml_file, 'r') as file:
+        data = yaml.safe_load(file)
+
+    table1_coords = []
+    table2_coords = []
+
+    submap = data['vo']['submap_0']
+
+    for key, value in submap.items():
+        coords = value[2:4]
+        if 'table_1' in key:
+            table1_coords.append(coords)
+        elif 'table_2' in key:
+            table2_coords.append(coords)
+
+    return np.array(table1_coords), np.array(table2_coords)
 
 ## I tried unstructured but it is trash
 def main(): # add a History of some past taken actions and add a time to them
+    rospy.init_node('prefrontal_cortex_node', anonymous=True)
+    # Initialize the ROS node
+    rospy.loginfo("Node started and will call services in a loop.")
+
     print("Start... \n\n")
+
+    goal_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+    send_rotation_goal(goal_pub=goal_pub, angle_degrees=180)
+
+    sys.exit()
     print(aquire_task())
     #print(scan_environment())
     #print(call_vit_service())
-    sys.exit()
+
 
     is_start = True
     # Define variables for different sections
@@ -266,10 +391,6 @@ def main(): # add a History of some past taken actions and add a time to them
     current_held_object = "None"  # Not holding anything
 
     parse_error = False
-
-    rospy.init_node('prefrontal_cortex_node', anonymous=True)
-    # Initialize the ROS node
-    rospy.loginfo("Node started and will call services in a loop.")
 
     rate = rospy.Rate(1)  # Adjust the rate as needed (e.g., 1 Hz)
     information = ""
