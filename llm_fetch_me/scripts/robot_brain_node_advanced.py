@@ -9,7 +9,9 @@ from geometry_msgs.msg import Twist
 from numpy.lib.type_check import isreal
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
-from tf.transformations import quaternion_from_euler
+from tf.transformations import quaternion_from_euler, euler_from_quaternion
+from matplotlib.path import Path
+
 import math
 import time
 import json
@@ -116,7 +118,7 @@ def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, ang
     pub.publish(stop_cmd)
     rospy.loginfo("Stopped publishing")
 
-def scan_environment(task_objects=["bottle"]):
+def scan_environment(task_objects=["bottle"]): # add objects taken from task or give it the Task Reasonong objects
     print("VIT")
     vit_results = call_vit_service()
 
@@ -169,6 +171,23 @@ def scan_environment(task_objects=["bottle"]):
 
     return call_yolo_service(detect_objects)
     #return call_yolo_service(["bottle","table","white object"])
+
+def scan_environment_pipeline():
+    """
+    :return: all found objects in environment
+    """
+    obj = []
+    # - for right + for left
+    send_rotation_goal(30)
+    rospy.sleep(10)
+    obj.append(scan_environment())
+
+    send_rotation_goal(-90)
+    rospy.sleep(10)
+    obj.append(scan_environment())
+
+    print(obj)
+    return obj
 
 def aquire_task():
     task = ""
@@ -231,56 +250,63 @@ def aquire_task():
 
     return task
 
-def send_rotation_goal(goal_pub, angle_degrees):
+def send_rotation_goal(angle_degrees):
     """
-    Sends a rotation goal using current position from /robot_pose and desired angle.
+    Sends an incremental rotation goal using current position from /robot_pose and desired angle.
 
     Args:
-        angle_degrees (float): Desired rotation angle in degrees
+        goal_pub (Publisher): ROS Publisher to publish the goal.
+        angle_degrees (float): Desired incremental rotation angle in degrees.
     """
     try:
-        # Get current robot position
+        goal_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+        # Get current robot pose
         current_pose = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
 
-        # Create goal with current position
+        # Extract current orientation quaternion
+        current_orientation = current_pose.pose.pose.orientation
+        current_quaternion = [
+            current_orientation.x,
+            current_orientation.y,
+            current_orientation.z,
+            current_orientation.w
+        ]
+
+        # Convert current quaternion to Euler angles
+        _, _, current_yaw = euler_from_quaternion(current_quaternion)
+
+        # Calculate new yaw as the sum of current yaw and desired incremental angle
+        angle_rad = math.radians(angle_degrees)
+        new_yaw = current_yaw + angle_rad
+
+        # Convert new yaw to quaternion
+        new_quaternion = quaternion_from_euler(0, 0, new_yaw)
+
+        # Create and populate the goal message
         goal = PoseStamped()
         goal.header.stamp = rospy.Time.now()
         goal.header.frame_id = "map"
 
-        # Use current x, y, z position
+        # Maintain current position
         goal.pose.position.x = current_pose.pose.pose.position.x
         goal.pose.position.y = current_pose.pose.pose.position.y
         goal.pose.position.z = current_pose.pose.pose.position.z
 
         # Set new orientation for rotation
-        angle_rad = math.radians(angle_degrees)
-        quaternion = quaternion_from_euler(0, 0, angle_rad)
-        print(quaternion)
-        goal.pose.orientation.x = quaternion[0]
-        goal.pose.orientation.y = quaternion[1]
-        goal.pose.orientation.z = quaternion[2]
-        goal.pose.orientation.w = quaternion[3]
-        #goal_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+        goal.pose.orientation.x = new_quaternion[0]
+        goal.pose.orientation.y = new_quaternion[1]
+        goal.pose.orientation.z = new_quaternion[2]
+        goal.pose.orientation.w = new_quaternion[3]
+
         rospy.sleep(2)  # Ensure connection is established
+
         # Publish goal
         goal_pub.publish(goal)
 
-
-        rospy.loginfo(f"Rotating to {angle_degrees} degrees at current position: "
-                     f"x={goal.pose.position.x:.2f}, y={goal.pose.position.y:.2f}")
+        rospy.loginfo(f"Incremental rotation of {angle_degrees} degrees applied. New yaw: {math.degrees(new_yaw):.2f}")
 
     except rospy.ROSException as e:
         rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
-
-def object_distance():
-    try:
-        # Get current robot position
-        current_pose = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
-
-    except rospy.ROSException as e:
-        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
-
-    return None
 
 def point_to_edge_distance_with_buffer(point, edge_start, edge_end, buffer_distance):
     """
@@ -325,11 +351,11 @@ def find_nearest_outside_point_with_buffer(polygon, point_inside, buffer_distanc
 
     return closest_point
 
-def parse_table_coordinates(yaml_file):
+def parse_table_coordinates(yaml_path):
     """
     Parse table coordinates from YAML file.
     """
-    with open(yaml_file, 'r') as file:
+    with open(yaml_path, 'r') as file:
         data = yaml.safe_load(file)
 
     table1_coords = []
@@ -346,6 +372,131 @@ def parse_table_coordinates(yaml_file):
 
     return np.array(table1_coords), np.array(table2_coords)
 
+def update_location(): # I only need when I do class
+    return None
+
+def update_held_object(): # I only need when I do class
+    return None
+
+def find_object_pose(objects=[["", 0.0]]):
+    '''
+    :param objects: objects with name and distance(depth)
+    :return: dictionary of objects and its corresponding pose PoseStamped()
+    '''
+    try:
+        # Get current robot position
+        current_pose = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
+
+        # Extract robot's current x, y position and orientation (yaw)
+        robot_x = current_pose.pose.pose.position.x
+        robot_y = current_pose.pose.pose.position.y
+
+        # Get the orientation quaternion and convert it to yaw
+        orientation = current_pose.pose.pose.orientation
+        yaw = math.atan2(2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
+                         1.0 - 2.0 * (orientation.y ** 2 + orientation.z ** 2))
+
+        objects_pose = {}
+
+        for obj_name, distance in objects:
+            # Calculate object's global position
+            object_x = robot_x + distance * math.cos(yaw)
+            object_y = robot_y + distance * math.sin(yaw)
+
+            # Create a PoseStamped message
+            obj_pose = PoseStamped()
+            obj_pose.header.frame_id = "map"  # Assuming the map frame for global coordinates
+            obj_pose.pose.position.x = object_x
+            obj_pose.pose.position.y = object_y
+            obj_pose.pose.position.z = 0.0  # Assuming 2D plane
+
+            # Set orientation to face the same direction as the robot
+            obj_pose.pose.orientation = orientation
+
+            objects_pose[obj_name] = obj_pose
+
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
+        return {}
+    return objects_pose
+
+def drive_to(location=PoseStamped()):
+    """
+    Publishes a PoseStamped message to the /move_base_simple/goal topic.
+
+    Args:
+        location (PoseStamped): Target location in the form of a PoseStamped message.
+
+    Returns:
+        None
+    """
+    try:
+        # Initialize publisher
+        pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+
+        # Ensure the publisher connection is established
+        rospy.sleep(1.0)  # Short delay to allow for connection
+
+        # Publish the target location
+        pub.publish(location)
+        rospy.loginfo(f"Published target location to /move_base_simple/goal: {location}")
+
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to publish target location: {str(e)}")
+
+    return None
+
+def navigate_to_point(target_point=np.array([1.89, -2.9]), buffer_distance=0.5):
+    """
+    Determines the navigation point based on the target's relation to tables.
+    """
+    # Parse table coordinates
+    table1_coords, table2_coords = parse_table_coordinates('/home/user/exchange/map_1/mmap.yaml')
+
+    if Path(table1_coords).contains_point(target_point):
+        rospy.loginfo("Point is inside Table 1, navigating to nearest outside point.")
+        point_to_drive = find_nearest_outside_point_with_buffer(table1_coords, target_point, buffer_distance)
+    elif Path(table2_coords).contains_point(target_point):
+        rospy.loginfo("Point is inside Table 2, navigating to nearest outside point.")
+        point_to_drive = find_nearest_outside_point_with_buffer(table2_coords, target_point, buffer_distance)
+    else:
+        rospy.loginfo("Point is outside both tables, navigating directly.")
+        point_to_drive = target_point
+
+    # Convert point to PoseStamped
+    pose = PoseStamped()
+    pose.header.frame_id = "map"
+    pose.pose.position.x = point_to_drive[0]
+    pose.pose.position.y = point_to_drive[1]
+    pose.pose.position.z = 0.0
+    pose.pose.orientation.w = 1.0  # Default forward orientation
+
+    drive_to(pose)
+
+""" NON DYNAMIC ENVIRONMENT
+    Start
+    Scan() N-times
+        send_rotation_goal()
+        scan
+        Turn Right Table and Bottle 
+        Save the YOLO Data with the Depth
+        send_rotation_goal()
+        scan
+        Turn Left Table and Human?
+        Save the YOLO Data with the Depth
+    Calculate the Position of the Objects in 3D Mapping Space update_location_object, no needed camera in-and extrinsics
+    Drive to Human (Calculate a point to drive to) and (update robo loc)
+    aquire_task()
+        give just text back, no ViT looking and no SpeechInput will be tested in Reallife or I could place Images
+    update the task
+    Drive to Bottle (Here the nearest_outside_point_with_buffer test)
+    positioning() todo function for finding the best angle, can be done with YOLO should run reallife
+    Just test fake gripping or test real one, positioning is Key
+    Drive to Human with Bottle
+    Drop it!
+"""
+
+
 ## I tried unstructured but it is trash
 def main(): # add a History of some past taken actions and add a time to them
     rospy.init_node('prefrontal_cortex_node', anonymous=True)
@@ -353,9 +504,8 @@ def main(): # add a History of some past taken actions and add a time to them
     rospy.loginfo("Node started and will call services in a loop.")
 
     print("Start... \n\n")
-
-    goal_pub = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
-    send_rotation_goal(goal_pub=goal_pub, angle_degrees=180)
+    navigate_to_point()
+    #scan_environment_pipeline()
 
     sys.exit()
     print(aquire_task())
@@ -479,7 +629,7 @@ def main(): # add a History of some past taken actions and add a time to them
 
         # Variables for context
         #robot_current_task = "Find a Task-Giver"
-        recent_modes = next_mode #question["context"]["previous_modes"]+"-->"+str(next_mode)  # Empty history
+        recent_mode = next_mode #question["context"]["previous_modes"]+"-->"+str(next_mode)  # Empty history
         #detected_objects = []  # Empty known objects list
         #current_location = None  # No specific location
         #current_held_object = None  # Not holding anything
