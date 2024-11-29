@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
   custom_msg_srv
   sensor_msgs
+  trajectory_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -77,6 +78,7 @@ generate_messages(
     std_srvs
     sensor_msgs
     geometry_msgs
+    trajectory_msgs
 )
 
 ################################################
@@ -111,7 +113,7 @@ generate_messages(
 catkin_package(
   #INCLUDE_DIRS include
 #  LIBRARIES llm_fetch_me
-  CATKIN_DEPENDS rospy std_msgs std_srvs sensor_msgs geometry_msgs
+  CATKIN_DEPENDS rospy std_msgs std_srvs sensor_msgs geometry_msgs trajectory_msgs
 #  CATKIN_DEPENDS message_runtime 
 #  DEPENDS system_lib
 )

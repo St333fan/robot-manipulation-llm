@@ -10,7 +10,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 class YoloBrain:
-    def __init__(self, model_name='yolov8x-worldv2.pt', sub_topic='', class_names=['bottle']):
+    def __init__(self, model_name='yolov8m-worldv2.pt', sub_topic='', class_names=['bottle']):
         # Check if CUDA is available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         rospy.loginfo(f"Using device: {self.device}")

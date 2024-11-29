@@ -9,6 +9,7 @@ from geometry_msgs.msg import Twist
 from numpy.lib.type_check import isreal
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from matplotlib.path import Path
 
@@ -89,6 +90,9 @@ def call_yolo_service(classes=["bottle"]):
     else:
         print("No objects detected in the response")
     return obj
+
+def call_whisper():
+    return None
        
 # Function to publish a message to the /mobile_base_controller/cmd_vel topic
 def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, angular_y=0.0, angular_z=0.0, duration=1.0):
@@ -473,6 +477,103 @@ def navigate_to_point(target_point=np.array([1.89, -2.9]), buffer_distance=0.5):
 
     drive_to(pose)
 
+def publish_head_position():
+    """
+    def switch_controllers(start_controllers, stop_controllers):
+    try:
+        switch_controller = rospy.ServiceProxy('/controller_manager/switch_controller', SwitchController)
+
+        # Switch controllers
+        response = switch_controller(
+            start_controllers=start_controllers,
+            stop_controllers=stop_controllers,
+            strictness=0  # 0 means allow partial switching
+        )
+
+        print(f"Controller switch response: {response}")
+        return response
+    except rospy.ServiceException as e:
+        print(f"Service call failed: {e}")
+        return False
+
+def publish_head_position():
+    # Create publisher
+    pub_head = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=10)
+
+    # Create JointTrajectory message
+    head_cmd = JointTrajectory()
+    head_cmd.header.stamp = rospy.Time.now()
+    head_cmd.joint_names = ['head_1_joint', 'head_2_joint']
+
+    # Create trajectory point
+    point = JointTrajectoryPoint()
+    point.positions = [0.0, -0.3]  # Specific head joint positions
+    point.time_from_start = rospy.Duration(1, 0)
+
+    head_cmd.points.append(point)
+
+    # Publish multiple times to ensure receipt
+    for _ in range(3):
+        pub_head.publish(head_cmd)
+        print("Published head position")
+        rospy.sleep(0.5)
+    :return:
+    """
+    # Create publisher for head controller
+    pub_head = rospy.Publisher('/head_controller/command', JointTrajectory, queue_size=10)
+
+    # Create JointTrajectory message
+    head_cmd = JointTrajectory()
+    head_cmd.header.seq = 0
+    head_cmd.header.stamp = rospy.Time.now()
+    head_cmd.joint_names = ['head_1_joint', 'head_2_joint']
+
+    # Create trajectory point
+    point = JointTrajectoryPoint()
+    point.positions = [0.0, -0.3]  # Same as the rostopic pub command
+    point.time_from_start = rospy.Duration(1, 0)
+
+    head_cmd.points.append(point)
+
+    # Publish head position
+    pub_head.publish(head_cmd)
+    print("Published head position")
+
+def fine_positioning(obj_search=["Coca Cola can"]):
+    # Create publisher
+    pub = rospy.Publisher('/mobile_base_controller/cmd_vel', Twist, queue_size=10)
+
+    print("Starting fine positioning")
+    publish_head_position()
+    # Create Twist commands
+    rotate_cmd = Twist()
+    rotate_cmd.angular.z = 0.3  # Rotate at 0.1 rad/s
+    stop_cmd = Twist()  # Stop command (all velocities set to 0)
+
+    rate = rospy.Rate(3)  # 3 Hz control loop
+
+    # Publish rotation command
+    pub.publish(rotate_cmd)
+    rate.sleep()
+
+    while not rospy.is_shutdown():
+        print("Searching for object")
+        object_list = call_yolo_service(obj_search)  # Get detected objects and distances
+        print(object_list)
+        # Check if the target object is in the detected list and within 1 meter
+        for obj in object_list:
+            obj_name, distance = obj
+            if obj_name in obj_search and distance < 1.2:
+                pub.publish(stop_cmd)  # Send stop command
+                return None  # Exit once the object is found within range
+
+        # Continue rotating if object not found
+        pub.publish(rotate_cmd)
+        rate.sleep()
+
+    return None
+
+
 """ NON DYNAMIC ENVIRONMENT
     Start
     Scan() N-times
@@ -504,7 +605,8 @@ def main(): # add a History of some past taken actions and add a time to them
     rospy.loginfo("Node started and will call services in a loop.")
 
     print("Start... \n\n")
-    navigate_to_point()
+    fine_positioning()
+    #navigate_to_point()
     #scan_environment_pipeline()
 
     sys.exit()
