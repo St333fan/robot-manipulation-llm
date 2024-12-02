@@ -60,7 +60,7 @@ def call_llm_service(information="", reload=False, question='', chat=True):
         rospy.logerr("Failed to call LLM service: %s" % e)
     return response.answer
 
-def call_yolo_service(classes=["bottle"]):
+def call_yolo_service(classes=["bottle"], with_xy = False):
     try:
         rospy.wait_for_service('/yolo_inference')
         trigger_service = rospy.ServiceProxy('/yolo_inference', InfYolo)
@@ -86,15 +86,18 @@ def call_yolo_service(classes=["bottle"]):
     if response.objects:
         for detected_object in response.objects:
             # Append each object's class_name and depth as a sublist
-            obj.append([detected_object.class_name, detected_object.depth])
+            if with_xy:
+                obj.append([detected_object.class_name, detected_object.depth, detected_object.x, detected_object.y])
+            else:
+                obj.append([detected_object.class_name, detected_object.depth])
     else:
         print("No objects detected in the response")
     return obj
 
 def call_whisper():
     return None
-       
-# Function to publish a message to the /mobile_base_controller/cmd_vel topic
+
+# Function to publish a message to the /mobile_base_controller/cmd_vel topic # for now it is a test function
 def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, angular_y=0.0, angular_z=0.0, duration=1.0):
     # Create a publisher object
     pub = rospy.Publisher('/mobile_base_controller/cmd_vel', Twist, queue_size=10)
@@ -173,7 +176,7 @@ def scan_environment(task_objects=["bottle"]): # add objects taken from task or 
         print("No JSON object found in the response.")
         return call_yolo_service(task_objects)
 
-    return call_yolo_service(detect_objects)
+    return (detect_objects)
     #return call_yolo_service(["bottle","table","white object"])
 
 def scan_environment_pipeline():
@@ -424,6 +427,33 @@ def find_object_pose(objects=[["", 0.0]]):
         return {}
     return objects_pose
 
+def objects_pose_to_distance(all_objects={"No_Object": PoseStamped()}):
+    """
+    Turns the Pose into distance, for LLM prompting
+    """
+    try:
+        # Get current robot position
+        current_pose_msg = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
+        current_pose = current_pose_msg.pose.pose
+
+        objects_distance = []
+
+        for object_name, object_pose in all_objects.items():
+            # Calculate Euclidean distance
+            dx = current_pose.position.x - object_pose.pose.position.x
+            dy = current_pose.position.y - object_pose.pose.position.y
+            dz = current_pose.position.z - object_pose.pose.position.z
+            distance = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+
+            # Append result as [Object_Name, distance]
+            objects_distance.append([object_name, distance])
+
+        return objects_distance
+
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
+        return []
+
 def drive_to(location=PoseStamped()):
     """
     Publishes a PoseStamped message to the /move_base_simple/goal topic.
@@ -450,12 +480,29 @@ def drive_to(location=PoseStamped()):
 
     return None
 
-def navigate_to_point(target_point=np.array([1.89, -2.9]), buffer_distance=0.5):
+def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
     """
     Determines the navigation point based on the target's relation to tables.
+    target_pose: PoseStamped, target point in map frame
+    buffer_distance: float, buffer distance to keep from tables or shorten drive
+
+    When the point is in a forbidden zone it drives to another point outside, when it drives to a location
+    which is not it will stop buffer_distance away
     """
+    # Extract position from PoseStamped
+    target_point = np.array([target_pose.pose.position.x, target_pose.pose.position.y])
+
     # Parse table coordinates
     table1_coords, table2_coords = parse_table_coordinates('/home/user/exchange/map_1/mmap.yaml')
+
+    try:
+        # Get current robot position
+        current_pose_msg = rospy.wait_for_message("/robot_pose", PoseWithCovarianceStamped, timeout=1.0)
+        current_pose = current_pose_msg.pose.pose
+        robot_position = np.array([current_pose.position.x, current_pose.position.y])
+    except rospy.ROSException as e:
+        rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
+        return  # Exit if robot position is unavailable
 
     if Path(table1_coords).contains_point(target_point):
         rospy.loginfo("Point is inside Table 1, navigating to nearest outside point.")
@@ -464,8 +511,18 @@ def navigate_to_point(target_point=np.array([1.89, -2.9]), buffer_distance=0.5):
         rospy.loginfo("Point is inside Table 2, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table2_coords, target_point, buffer_distance)
     else:
-        rospy.loginfo("Point is outside both tables, navigating directly.")
-        point_to_drive = target_point
+        rospy.loginfo("Point is outside both tables, navigating to a closer point.")
+        # Compute vector from robot to target
+        vector_to_target = target_point - robot_position
+        distance_to_target = np.linalg.norm(vector_to_target)
+
+        if distance_to_target > buffer_distance:
+            # Shorten the distance by buffer_distance
+            point_to_drive = robot_position + (vector_to_target / distance_to_target) * (
+                        distance_to_target - buffer_distance)
+        else:
+            rospy.logwarn("Target is within buffer distance; navigating directly to target.")
+            point_to_drive = target_point
 
     # Convert point to PoseStamped
     pose = PoseStamped()
@@ -563,15 +620,39 @@ def fine_positioning(obj_search=["Coca Cola can"]):
         # Check if the target object is in the detected list and within 1 meter
         for obj in object_list:
             obj_name, distance = obj
-            if obj_name in obj_search and distance < 1.2:
+            if obj_name in obj_search and distance < 1.4:
                 pub.publish(stop_cmd)  # Send stop command
-                return None  # Exit once the object is found within range
+
+                while not rospy.is_shutdown(): # bad coding
+                    object_list = call_yolo_service(obj_search, with_xy=True)
+                    print(object_list)
+
+                    # Check if the target object is in the detected list and within 1 meter
+                    for obj in object_list:
+                        obj_name, distance, x, y = obj
+                        if obj_name in obj_search and distance < 1.4:
+                            if x < 230:
+                                rotate_cmd.angular.z = 0.1
+                            elif x > 410:
+                                rotate_cmd.angular.z = -0.1
+                            else:
+                                pub.publish(stop_cmd)  # Send stop command
+                                return None  # Exit once the object is found within range
+                            rate = rospy.Rate(3)  # 3 Hz control loop
+                            # Publish rotation command
+                            pub.publish(rotate_cmd)
+                            rate.sleep()
 
         # Continue rotating if object not found
         pub.publish(rotate_cmd)
         rate.sleep()
 
     return None
+
+def speech_input():
+    str = ""
+    str = "Bring the Human a Beer and give it to him"
+    return str
 
 
 """ NON DYNAMIC ENVIRONMENT
@@ -599,7 +680,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
 
 
 ## I tried unstructured but it is trash
-def main(): # add a History of some past taken actions and add a time to them
+def test(): # add a History of some past taken actions and add a time to them
     rospy.init_node('prefrontal_cortex_node', anonymous=True)
     # Initialize the ROS node
     rospy.loginfo("Node started and will call services in a loop.")
@@ -739,8 +820,159 @@ def main(): # add a History of some past taken actions and add a time to them
         rospy.loginfo("All services have been called in this cycle.")
         rate.sleep()
 
+def main(): # add a History of some past taken actions and add a time to them
+    rospy.init_node('prefrontal_cortex_node', anonymous=True)
+    # Initialize the ROS node
+    rospy.loginfo("Node started and will call services in a loop.")
+
+    print("Start... \n\n")
+    fine_positioning()
+    #navigate_to_point()
+    #scan_environment_pipeline()
+
+    sys.exit()
+    print(aquire_task())
+    #print(scan_environment())
+    #print(call_vit_service())
+
+    all_found_objects_with_twist = {}
+
+    is_start = True
+    # Define variables for different sections
+    modes = {
+        "SPEECH": "Only possible nearby a Human in handshake distance",
+        "SCAN": "Scan environment for objects and humans",
+        "NAVIGATE": "Move to specified object",
+        "PICKUP": "Grab object, location_robot must be at object",
+        "PLACE": "Put down held object"
+    }
+
+    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
+    prompt = "You operate a robot by choosing its next mode of operation based on the current context and task requirements. Focus on completing the specified task efficiently. Start from the most recent mode in HISTORY, or default to START MODE if HISTORY is empty."
+    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"#"Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
+    instructions = "Analyze the situation logically and determine the most suitable next mode. If prerequisites for the desired mode are fulfilled, develop a concise plan of action. Respond succinctly."
+    expected_response = {
+        "reasoning": "brief_explanation_based_on_the_task",
+        "next_mode": "selected_mode",
+        "target_object": "if_navigation_needed", #if_navigation_needed
+    }
+
+    # Variables for context
+    robot_current_task = "None"
+    recent_mode = "None"  # Empty history
+    detected_objects = [["",""]]  # Empty known objects list
+    current_location = "None"  # No specific location
+    current_held_object = "None"  # Not holding anything
+
+    parse_error = False
+
+    rate = rospy.Rate(1)  # Adjust the rate as needed (e.g., 1 Hz)
+    information = ""
+    while not rospy.is_shutdown():
+        context = {
+            "modes": modes,
+            "task": robot_current_task,
+            "history": recent_mode,
+            "known_objects": detected_objects,
+            "location_robot": current_location,
+            "holding_object": current_held_object,
+        }
+
+        # Construct the full JSON object
+        question = {
+            "prompt": prompt,
+            "context": context,
+            "instructions": instructions,
+            "expected_response": expected_response
+        }
+
+        if parse_error:
+            call_llm_service("ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again!", reload=False)
+            parse_error = False
+        else:
+            que = json.dumps(question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
+            llm_answer = call_llm_service(question=que, reload=False)
+        print(que)
+        print(llm_answer)
+
+        # Extract JSON using regex
+        json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
+
+        if json_match:
+            json_string = json_match.group()
+            try:
+                # Parse the JSON
+                response = json.loads(json_string)
+
+                # Access the elements
+                next_mode = response["next_mode"]
+                target_object = response["target_object"]
+                reasoning = response["reasoning"]
+
+                print(f"Reasoning: {reasoning}")
+                print(f"Next mode: {next_mode}")
+                print(f"Target object: {target_object}")
+                #print(f"Rate: {rated}")
+
+            except json.JSONDecodeError as e:
+                print("Error decoding JSON:", e)
+        else:
+            next_mode = ""
+            print("No JSON object found in the response.")
+
+        if next_mode == "SPEECH":
+            print("Acquiring a new task...")
+            robot_current_task = speech_input()
+            # Add logic to acquire a new task
+        elif next_mode == "SCAN":
+            print("Scanning the environment...")
+            detected_objects = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+
+            # Transform the data to match the required style
+            detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+            #detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
+
+            if len(all_found_objects_with_twist) == 0:
+                all_found_objects_with_twist = find_object_pose(detected_objects)
+            else:
+                all_found_objects_with_twist.update(find_object_pose(detected_objects))
+
+            # Add logic to scan the environment
+        elif next_mode == "NAVIGATE": # make a difference from space to object, cant drive to near to space but can
+            # drive near to object
+            print("Navigating to the specified object...")
+            navigate_to_point(traget_pose=all_found_objects_with_twist[target_object])
+            if traget_object != "kitchen":
+                fine_positioning(obj_search=[target_object])
+            current_location = target_object  # No specific location
+            detected_objects = objects_pose_to_distance(all_found_objects_with_twist)
+
+        elif next_mode == "PICKUP":
+            current_held_object = target_object
+            print("Picking up the object...")
+            # Add logic to pick up the object
+        elif next_mode == "PLACE":
+            print("Placing the object...")
+            break
+            # Add logic to place the object
+        else:
+            print(f"Unknown mode: {next_mode}")
+            parse_error = True
+            # Handle unexpected mode
+
+        # Variables for context
+        #robot_current_task = "Find a Task-Giver"
+        recent_mode = next_mode #question["context"]["previous_modes"]+"-->"+str(next_mode)  # Empty history
+        #detected_objects = []  # Empty known objects list
+        #current_location = None  # No specific location
+        #current_held_object = None  # Not holding anything
+
+        rospy.loginfo("All services have been called in this cycle.")
+        rate.sleep()
+
 if __name__ == '__main__':
     try:
-        main()
+        test()
+        # main()
     except rospy.ROSInterruptException:
         rospy.loginfo("Node terminated.")
