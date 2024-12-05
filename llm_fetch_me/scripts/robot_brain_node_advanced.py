@@ -87,9 +87,9 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         for detected_object in response.objects:
             # Append each object's class_name and depth as a sublist
             if with_xy:
-                obj.append([detected_object.class_name, detected_object.depth, detected_object.x, detected_object.y])
+                obj.append([detected_object.class_name, round(detected_object.depth, 1), detected_object.x, detected_object.y])
             else:
-                obj.append([detected_object.class_name, detected_object.depth])
+                obj.append([detected_object.class_name, round(detected_object.depth, 1)])
     else:
         print("No objects detected in the response")
     return obj
@@ -129,12 +129,12 @@ def scan_environment(task_objects=["bottle"]): # add objects taken from task or 
     print("VIT")
     vit_results = call_vit_service()
 
-    prompt = "Extract all key objects(humans are objects too!) and environments from the Vision Transformer's scene description. Focus on common objects and spaces in a room."
+    prompt = "Extract all key objects(mention humans, man, woman also in objects) and environments from the Vision Transformer's scene description. Focus on common objects and spaces in a room."
     context = {"vit_results":vit_results}
     instructions = "Reason through what would make the most sense which objects/spaces are needed. Convert synonyms to common terms (e.g., 'people' to 'human') ANSWER SHORT"
     expected_response={
         "reasoning": "brief_explanation",
-        "detect_objects": "[\"relevant_objects\"]",
+        "detect_objects": "[\"relevant_objects_and_humans\"]",
         "detect_space": "[\"relevant_higher_level_spaces(e.g.kitchen/bedroom/etc\"]"
     }
 
@@ -176,25 +176,37 @@ def scan_environment(task_objects=["bottle"]): # add objects taken from task or 
         print("No JSON object found in the response.")
         return call_yolo_service(task_objects)
 
-    return (detect_objects)
+    return call_yolo_service(detect_objects)
     #return call_yolo_service(["bottle","table","white object"])
 
 def scan_environment_pipeline():
     """
     :return: all found objects in environment
     """
-    obj = []
+    objs = []
+    obj_twist = {}
     # - for right + for left
     send_rotation_goal(30)
-    rospy.sleep(10)
-    obj.append(scan_environment())
+    rospy.sleep(5)
+    objs_scan = scan_environment()
+    objs.extend(objs_scan) # use extend and not append
+
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
+    obj_twist = find_object_pose(detected_objects)
+    print(obj_twist)
 
     send_rotation_goal(-90)
-    rospy.sleep(10)
-    obj.append(scan_environment())
+    rospy.sleep(5)
+    objs_scan = scan_environment()
+    objs.extend(objs_scan)
 
-    print(obj)
-    return obj
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
+    # detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
+    obj_twist.update(find_object_pose(detected_objects))
+    print(obj_twist)
+
+    print(objs)
+    return objs, obj_twist # ["","",...]
 
 def aquire_task():
     task = ""
@@ -406,6 +418,13 @@ def find_object_pose(objects=[["", 0.0]]):
         objects_pose = {}
 
         for obj_name, distance in objects:
+            try:
+                # Remove any non-numeric characters like 'm away'
+                distance = float(''.join(c for c in str(distance) if c.isdigit() or c == '.' or c == '-'))
+            except ValueError:
+                rospy.logwarn(f"Invalid distance value for object {obj_name}: {distance}")
+                continue
+
             # Calculate object's global position
             object_x = robot_x + distance * math.cos(yaw)
             object_y = robot_y + distance * math.sin(yaw)
@@ -421,6 +440,7 @@ def find_object_pose(objects=[["", 0.0]]):
             obj_pose.pose.orientation = orientation
 
             objects_pose[obj_name] = obj_pose
+
 
     except rospy.ROSException as e:
         rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
@@ -491,7 +511,7 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
     """
     # Extract position from PoseStamped
     target_point = np.array([target_pose.pose.position.x, target_pose.pose.position.y])
-
+    print(target_point)
     # Parse table coordinates
     table1_coords, table2_coords = parse_table_coordinates('/home/user/exchange/map_1/mmap.yaml')
 
@@ -504,10 +524,10 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
         rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
         return  # Exit if robot position is unavailable
 
-    if Path(table1_coords).contains_point(target_point):
+    if Path(table1_coords).contains_point(target_point) and False:
         rospy.loginfo("Point is inside Table 1, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table1_coords, target_point, buffer_distance)
-    elif Path(table2_coords).contains_point(target_point):
+    elif Path(table2_coords).contains_point(target_point) and False:
         rospy.loginfo("Point is inside Table 2, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table2_coords, target_point, buffer_distance)
     else:
@@ -516,13 +536,20 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
         vector_to_target = target_point - robot_position
         distance_to_target = np.linalg.norm(vector_to_target)
 
+        buffer_distance = 0.8 # for testing
         if distance_to_target > buffer_distance:
             # Shorten the distance by buffer_distance
             point_to_drive = robot_position + (vector_to_target / distance_to_target) * (
                         distance_to_target - buffer_distance)
+            point_to_drive[1] = point_to_drive[1] # hmm strange
         else:
             rospy.logwarn("Target is within buffer distance; navigating directly to target.")
             point_to_drive = target_point
+            if point_to_drive[1]>0: # test
+                point_to_drive[1] = point_to_drive[1]-0.4
+            else:
+                point_to_drive[1] = point_to_drive[1] + 0.4
+
 
     # Convert point to PoseStamped
     pose = PoseStamped()
@@ -531,6 +558,7 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
     pose.pose.position.y = point_to_drive[1]
     pose.pose.position.z = 0.0
     pose.pose.orientation.w = 1.0  # Default forward orientation
+    print(pose)
 
     drive_to(pose)
 
@@ -620,7 +648,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
         # Check if the target object is in the detected list and within 1 meter
         for obj in object_list:
             obj_name, distance = obj
-            if obj_name in obj_search and distance < 1.4:
+            if obj_name in obj_search:# and (distance < 1.6 or math.isnan(distance)): # problem when nan!!!
                 pub.publish(stop_cmd)  # Send stop command
 
                 while not rospy.is_shutdown(): # bad coding
@@ -630,7 +658,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
                     # Check if the target object is in the detected list and within 1 meter
                     for obj in object_list:
                         obj_name, distance, x, y = obj
-                        if obj_name in obj_search and distance < 1.4:
+                        if obj_name in obj_search :#and (distance < 1.6 or math.isnan(distance)):
                             if x < 230:
                                 rotate_cmd.angular.z = 0.1
                             elif x > 410:
@@ -651,33 +679,8 @@ def fine_positioning(obj_search=["Coca Cola can"]):
 
 def speech_input():
     str = ""
-    str = "Bring the Human a Beer and give it to him"
+    str = "Bring the Woman a can of Coca Cola and give it to her"
     return str
-
-
-""" NON DYNAMIC ENVIRONMENT
-    Start
-    Scan() N-times
-        send_rotation_goal()
-        scan
-        Turn Right Table and Bottle 
-        Save the YOLO Data with the Depth
-        send_rotation_goal()
-        scan
-        Turn Left Table and Human?
-        Save the YOLO Data with the Depth
-    Calculate the Position of the Objects in 3D Mapping Space update_location_object, no needed camera in-and extrinsics
-    Drive to Human (Calculate a point to drive to) and (update robo loc)
-    aquire_task()
-        give just text back, no ViT looking and no SpeechInput will be tested in Reallife or I could place Images
-    update the task
-    Drive to Bottle (Here the nearest_outside_point_with_buffer test)
-    positioning() todo function for finding the best angle, can be done with YOLO should run reallife
-    Just test fake gripping or test real one, positioning is Key
-    Drive to Human with Bottle
-    Drop it!
-"""
-
 
 ## I tried unstructured but it is trash
 def test(): # add a History of some past taken actions and add a time to them
@@ -686,41 +689,42 @@ def test(): # add a History of some past taken actions and add a time to them
     rospy.loginfo("Node started and will call services in a loop.")
 
     print("Start... \n\n")
-    fine_positioning()
+    # fine_positioning()
     #navigate_to_point()
     #scan_environment_pipeline()
 
-    sys.exit()
-    print(aquire_task())
+    #sys.exit()
+    #print(aquire_task())
     #print(scan_environment())
     #print(call_vit_service())
 
-
+    past_reasoning = ""
     is_start = True
     # Define variables for different sections
     modes = {
-        "SPEECH": "Only possbile nearby a Human in handshake distance",
-        "SCAN": "Scan environment for objects and humans",
-        "NAVIGATE": "Move to specified object",
-        "PICKUP": "Grab object, location_robot must be at object",
-        "PLACE": "Put down held object"
+        "SPEECH": "Only possible nearby a Human below 2m distance",
+        "SCAN": "Scan environment fo find known_objects",
+        "NAVIGATE": "Move to known_objects",
+        "PICKUP": "Grab known_object, location_robot must be at known_object",
+        "PLACE": "Put down holding_object"
     }
 
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
-    prompt = "You operate a robot by choosing its next mode of operation based on the current context and task requirements. Focus on completing the specified task efficiently. Start from the most recent mode in HISTORY, or default to START MODE if HISTORY is empty."
-    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"#"Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
-    instructions = "Analyze the situation logically and determine the most suitable next mode. If prerequisites for the desired mode are fulfilled, develop a concise plan of action. Respond succinctly."
+    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
+    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"  # "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
+    instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances"
+    #instructions = "Reply in expected_response JSON format. Before the JSON, analyze mode-object interactions, mode order, and distances. Keep the JSON brief."
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "if_navigation_needed", #if_navigation_needed
+        "target_object": "if_navigation_needed",  # if_navigation_needed
     }
 
     # Variables for context
-    robot_current_task = "None"
+    robot_current_task = "Find a human an ask him"
     recent_mode = "None"  # Empty history
-    detected_objects = [["",""]]  # Empty known objects list
-    current_location = "None"  # No specific location
+    detected_objects = [["None", "None"]]  # Empty known objects list
+    current_location = "not_near_any_object"  # No specific location
     current_held_object = "None"  # Not holding anything
 
     parse_error = False
@@ -745,13 +749,19 @@ def test(): # add a History of some past taken actions and add a time to them
             "expected_response": expected_response
         }
 
+        que = "PAST REASONING\n" + past_reasoning + "\nCURRENT INFORMATION\n" + json.dumps(question, indent=1)
+        print(que)
         if parse_error:
-            call_llm_service("ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again!", reload=False)
+            llm_answer = call_llm_service(
+                question="ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again with valid json! Try to just write the Json\n\n" + que,
+                reload=True, chat=False)
             parse_error = False
         else:
-            que = json.dumps(question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
-            llm_answer = call_llm_service(question=que, reload=False)
-        print(que)
+            # que = json.dumps("{\n\"prompt\": \"" + question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
+            # que = json.dumps(question)
+            # print(formatted_json)
+            llm_answer = call_llm_service(question=que, reload=True, chat=False)
+        # print(que)
         print(llm_answer)
 
         # Extract JSON using regex
@@ -768,6 +778,10 @@ def test(): # add a History of some past taken actions and add a time to them
                 target_object = response["target_object"]
                 reasoning = response["reasoning"]
 
+                #past_reasoning = past_reasoning + " reasoning: " + reasoning + "\n"
+
+                #past_reasoning = call_llm_service(question="Summarise, SUPERSHORT and precise:\n\n" + past_reasoning, reload=True, chat=False)
+
                 print(f"Reasoning: {reasoning}")
                 print(f"Next mode: {next_mode}")
                 print(f"Target object: {target_object}")
@@ -781,7 +795,7 @@ def test(): # add a History of some past taken actions and add a time to them
 
         if next_mode == "SPEECH":
             print("Acquiring a new task...")
-            robot_current_task = "Bring the Human a Beer and give it to him"
+            robot_current_task = "Bring the Human a Beer and place it down"
             # Add logic to acquire a new task
         elif next_mode == "SCAN":
             print("Scanning the environment...")
@@ -791,11 +805,11 @@ def test(): # add a History of some past taken actions and add a time to them
             print("Navigating to the specified object...")
             current_location = target_object  # No specific location
             if target_object =="Human":
-                detected_objects = [["Human", "30cm away"], ["Beer", "8m away"], ["Kitchen", "5m away"]]
+                detected_objects = [["Human", "0.3m away"], ["Beer", "8m away"], ["Kitchen", "5m away"]]
             elif target_object =="Kitchen":
-                detected_objects = [["Human", "5m away"], ["Beer", "8m away"], ["Kitchen", "30cm away"]]
+                detected_objects = [["Human", "5m away"], ["Beer", "8m away"], ["Kitchen", "0.3m away"]]
             elif target_object =="Beer":
-                detected_objects = [["Human", "5m away"], ["Beer", "30cm away"], ["Kitchen", "5m away"]]
+                detected_objects = [["Human", "5m away"], ["Beer", "0.3m away"], ["Kitchen", "5m away"]]
             # Add navigation logic
         elif next_mode == "PICKUP":
             current_held_object = target_object
@@ -824,44 +838,57 @@ def main(): # add a History of some past taken actions and add a time to them
     rospy.init_node('prefrontal_cortex_node', anonymous=True)
     # Initialize the ROS node
     rospy.loginfo("Node started and will call services in a loop.")
-
-    print("Start... \n\n")
-    fine_positioning()
-    #navigate_to_point()
-    #scan_environment_pipeline()
-
-    sys.exit()
-    print(aquire_task())
-    #print(scan_environment())
-    #print(call_vit_service())
-
     all_found_objects_with_twist = {}
+    print("Start... \n\n")
+    """
+    obj = []
+    # - for right + for left
+    obj.extend(scan_environment())  # use extend and not append
+    detected_objects = obj
 
+    print(detected_objects)
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+
+    if len(all_found_objects_with_twist) == 0:
+        all_found_objects_with_twist = find_object_pose(detected_objects)
+    else:
+        all_found_objects_with_twist.update(find_object_pose(detected_objects))
+
+    print(all_found_objects_with_twist["woman"])
+
+    navigate_to_point(target_pose=all_found_objects_with_twist["woman"])
+    rospy.sleep(10)
+    fine_positioning(obj_search=["woman"])
+    sys.exit()
+    """
+
+    past_reasoning = ""
     is_start = True
     # Define variables for different sections
     modes = {
-        "SPEECH": "Only possible nearby a Human in handshake distance",
-        "SCAN": "Scan environment for objects and humans",
-        "NAVIGATE": "Move to specified object",
-        "PICKUP": "Grab object, location_robot must be at object",
-        "PLACE": "Put down held object"
+        "SPEECH": "Only possible nearby a Human below 2m distance",
+        "SCAN": "Scan environment fo find known_objects",
+        "NAVIGATE": "Move to known_objects",
+        "PICKUP": "Grab known_object, location_robot must be at known_object",
+        "PLACE": "Put down holding_object"
     }
 
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
-    prompt = "You operate a robot by choosing its next mode of operation based on the current context and task requirements. Focus on completing the specified task efficiently. Start from the most recent mode in HISTORY, or default to START MODE if HISTORY is empty."
-    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"#"Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
-    instructions = "Analyze the situation logically and determine the most suitable next mode. If prerequisites for the desired mode are fulfilled, develop a concise plan of action. Respond succinctly."
+    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
+    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"  # "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
+    instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances"
+    # instructions = "Reply in expected_response JSON format. Before the JSON, analyze mode-object interactions, mode order, and distances. Keep the JSON brief."
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "if_navigation_needed", #if_navigation_needed
+        "target_object": "if_navigation_needed",  # if_navigation_needed
     }
 
     # Variables for context
-    robot_current_task = "None"
+    robot_current_task = "Find a human an ask him"
     recent_mode = "None"  # Empty history
-    detected_objects = [["",""]]  # Empty known objects list
-    current_location = "None"  # No specific location
+    detected_objects = [["None", "None"]]  # Empty known objects list
+    current_location = "not_near_any_object"  # No specific location
     current_held_object = "None"  # Not holding anything
 
     parse_error = False
@@ -886,13 +913,19 @@ def main(): # add a History of some past taken actions and add a time to them
             "expected_response": expected_response
         }
 
+        que = "PAST REASONING\n" + past_reasoning + "\nCURRENT INFORMATION\n" + json.dumps(question, indent=1)
+        print(que)
         if parse_error:
-            call_llm_service("ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again!", reload=False)
+            llm_answer = call_llm_service(
+                question="ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again with valid json! Try to just write the Json\n\n" + que,
+                reload=True, chat=False)
             parse_error = False
         else:
-            que = json.dumps(question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
-            llm_answer = call_llm_service(question=que, reload=False)
-        print(que)
+            # que = json.dumps("{\n\"prompt\": \"" + question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
+            # que = json.dumps(question)
+            # print(formatted_json)
+            llm_answer = call_llm_service(question=que, reload=True, chat=False)
+        # print(que)
         print(llm_answer)
 
         # Extract JSON using regex
@@ -909,6 +942,8 @@ def main(): # add a History of some past taken actions and add a time to them
                 target_object = response["target_object"]
                 reasoning = response["reasoning"]
 
+                #past_reasoning = past_reasoning + "reasoning: " + reasoning + "\n"
+
                 print(f"Reasoning: {reasoning}")
                 print(f"Next mode: {next_mode}")
                 print(f"Target object: {target_object}")
@@ -916,6 +951,7 @@ def main(): # add a History of some past taken actions and add a time to them
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
+                next_mode = ""
         else:
             next_mode = ""
             print("No JSON object found in the response.")
@@ -924,25 +960,31 @@ def main(): # add a History of some past taken actions and add a time to them
             print("Acquiring a new task...")
             robot_current_task = speech_input()
             # Add logic to acquire a new task
-        elif next_mode == "SCAN":
+        elif next_mode == "SCAN": #detected_objects_twist is bad coding
             print("Scanning the environment...")
-            detected_objects = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
-
+            detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+            print(detected_objects)
             # Transform the data to match the required style
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
             #detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
 
             if len(all_found_objects_with_twist) == 0:
-                all_found_objects_with_twist = find_object_pose(detected_objects)
+                all_found_objects_with_twist = detected_objects_twist # this is wrong is should be done after every scan before
             else:
-                all_found_objects_with_twist.update(find_object_pose(detected_objects))
+                all_found_objects_with_twist.update(detected_objects_twist)
 
             # Add logic to scan the environment
         elif next_mode == "NAVIGATE": # make a difference from space to object, cant drive to near to space but can
             # drive near to object
             print("Navigating to the specified object...")
-            navigate_to_point(traget_pose=all_found_objects_with_twist[target_object])
-            if traget_object != "kitchen":
+            # print(all_found_objects_with_twist)
+            #print(detected_objects)
+            #print(all_found_objects_with_twist)
+            #print(all_found_objects_with_twist[target_object])
+            navigate_to_point(target_pose=all_found_objects_with_twist[target_object])
+
+            rospy.sleep(20)
+            if target_object != "kitchen":
                 fine_positioning(obj_search=[target_object])
             current_location = target_object  # No specific location
             detected_objects = objects_pose_to_distance(all_found_objects_with_twist)
