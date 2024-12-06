@@ -147,7 +147,7 @@ def scan_environment(task_objects=["bottle"]): # add objects taken from task or 
     print(vit_results)
     print(expected_response) #+ "\n\n" + json.dumps(question["instructions"])
     que = json.dumps(question)
-    llm_answer = call_llm_service(question=que, chat=False)
+    llm_answer = call_llm_service(question=que, chat=False, reload=True)
     #llm_answer = call_llm_service(question="Responde with the json format", reload=False)
     print(llm_answer)
     # Extract JSON using regex
@@ -193,7 +193,7 @@ def scan_environment_pipeline():
 
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
     obj_twist = find_object_pose(detected_objects)
-    print(obj_twist)
+    #print(obj_twist)
 
     send_rotation_goal(-90)
     rospy.sleep(5)
@@ -203,9 +203,9 @@ def scan_environment_pipeline():
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
     # detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
     obj_twist.update(find_object_pose(detected_objects))
-    print(obj_twist)
+    #print(obj_twist)
 
-    print(objs)
+    #print(objs)
     return objs, obj_twist # ["","",...]
 
 def aquire_task():
@@ -463,7 +463,7 @@ def objects_pose_to_distance(all_objects={"No_Object": PoseStamped()}):
             dx = current_pose.position.x - object_pose.pose.position.x
             dy = current_pose.position.y - object_pose.pose.position.y
             dz = current_pose.position.z - object_pose.pose.position.z
-            distance = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+            distance = round(math.sqrt(dx ** 2 + dy ** 2 + dz ** 2), 1)
 
             # Append result as [Object_Name, distance]
             objects_distance.append([object_name, distance])
@@ -679,7 +679,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
 
 def speech_input():
     str = ""
-    str = "Bring the Woman a can of Coca Cola and give it to her"
+    str = "Bring the Woman a bottle and give it to her"
     return str
 
 ## I tried unstructured but it is trash
@@ -859,6 +859,13 @@ def main(): # add a History of some past taken actions and add a time to them
     navigate_to_point(target_pose=all_found_objects_with_twist["woman"])
     rospy.sleep(10)
     fine_positioning(obj_search=["woman"])
+    ------------
+    print("Scanning the environment...")
+    detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+    print(detected_objects)
+    # Transform the data to match the required style
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+    print(detected_objects)
     sys.exit()
     """
 
@@ -963,9 +970,10 @@ def main(): # add a History of some past taken actions and add a time to them
         elif next_mode == "SCAN": #detected_objects_twist is bad coding
             print("Scanning the environment...")
             detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
-            print(detected_objects)
+            #print(detected_objects)
             # Transform the data to match the required style
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+            #print(detected_objects)
             #detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
 
             if len(all_found_objects_with_twist) == 0:
@@ -1014,7 +1022,7 @@ def main(): # add a History of some past taken actions and add a time to them
 
 if __name__ == '__main__':
     try:
-        test()
-        # main()
+        # test()
+        main()
     except rospy.ROSInterruptException:
         rospy.loginfo("Node terminated.")
