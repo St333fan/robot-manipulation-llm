@@ -8,12 +8,17 @@ from fontTools.ttLib.tables.ttProgram import instructions
 from geometry_msgs.msg import Twist
 from numpy.lib.type_check import isreal
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovariance, Point, Quaternion, PoseWithCovarianceStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from matplotlib.path import Path
+from std_msgs.msg import Header
 
+from controller_manager_msgs.srv import SwitchController, UnloadController
+
+import os
 import math
+import subprocess
 import time
 import json
 import yaml
@@ -21,6 +26,8 @@ import numpy as np
 import re
 import sys
 import ast
+import tf2_ros
+import signal
 from sympy.codegen.ast import continue_
 
 
@@ -351,24 +358,57 @@ def point_to_edge_distance_with_buffer(point, edge_start, edge_end, buffer_dista
     distance = np.linalg.norm(point - buffer_adjusted_point)
     return buffer_adjusted_point, distance
 
+
 def find_nearest_outside_point_with_buffer(polygon, point_inside, buffer_distance):
     """
     Find the nearest point outside the polygon to the given point inside, with a buffer.
+
+    Parameters:
+        polygon: List of points defining the polygon (numpy array of shape Nx2).
+        point_inside: A point inside the polygon (numpy array of shape 2).
+        buffer_distance: The distance to extend outward from the nearest edge.
+
+    Returns:
+        buffer_adjusted_point: The point outside the polygon at the specified buffer distance.
     """
     closest_point = None
     min_distance = float('inf')
+    orthogonal_vector = None
 
-    # Iterate over the polygon's edges
+    # Iterate over the edges of the polygon
     for i in range(len(polygon)):
         edge_start = polygon[i]
         edge_end = polygon[(i + 1) % len(polygon)]  # Wrap around to form edges
-        candidate_point, distance = point_to_edge_distance_with_buffer(point_inside, edge_start, edge_end,
-                                                                       buffer_distance)
+
+        # Edge vector
+        edge = edge_end - edge_start
+        edge_length_squared = np.dot(edge, edge)
+
+        # Project the point onto the edge
+        if edge_length_squared == 0:  # Degenerate edge
+            projected_point = edge_start
+        else:
+            t = np.dot(point_inside - edge_start, edge) / edge_length_squared
+            t = np.clip(t, 0, 1)  # Clamp t to stay within the edge segment
+            projected_point = edge_start + t * edge
+
+        # Compute distance from the point to the edge
+        distance = np.linalg.norm(point_inside - projected_point)
+
+        # Update closest point and orthogonal vector if this edge is nearer
         if distance < min_distance:
             min_distance = distance
-            closest_point = candidate_point
+            closest_point = projected_point
 
-    return closest_point
+            # Compute the orthogonal vector to the edge
+            edge_normal = np.array([-edge[1], edge[0]])  # Perpendicular vector
+            edge_normal = edge_normal / np.linalg.norm(edge_normal)  # Normalize
+            orthogonal_vector = edge_normal
+
+    # Adjust the closest point outward by the buffer distance
+    buffer_adjusted_point = closest_point + buffer_distance * orthogonal_vector
+
+    return buffer_adjusted_point
 
 def parse_table_coordinates(yaml_path):
     """
@@ -500,7 +540,7 @@ def drive_to(location=PoseStamped()):
 
     return None
 
-def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
+def navigate_to_point(target_pose=PoseStamped(), buffer_distance=0.5):
     """
     Determines the navigation point based on the target's relation to tables.
     target_pose: PoseStamped, target point in map frame
@@ -524,19 +564,22 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=1):
         rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
         return  # Exit if robot position is unavailable
 
-    if Path(table1_coords).contains_point(target_point) and False:
+    if Path(table1_coords).contains_point(target_point):# and False:
+        print("q")
         rospy.loginfo("Point is inside Table 1, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table1_coords, target_point, buffer_distance)
-    elif Path(table2_coords).contains_point(target_point) and False:
+    elif Path(table2_coords).contains_point(target_point):# and False:
+        print("here")
         rospy.loginfo("Point is inside Table 2, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table2_coords, target_point, buffer_distance)
     else:
+        print("HBdjbgkjnfsdgsbdlfgnbsdlfbijsdfnbisdnfbvinsdfkvnsdhjfvjsdfv")
         rospy.loginfo("Point is outside both tables, navigating to a closer point.")
         # Compute vector from robot to target
         vector_to_target = target_point - robot_position
         distance_to_target = np.linalg.norm(vector_to_target)
 
-        buffer_distance = 0.8 # for testing
+        buffer_distance = 0.4 # for testing
         if distance_to_target > buffer_distance:
             # Shorten the distance by buffer_distance
             point_to_drive = robot_position + (vector_to_target / distance_to_target) * (
@@ -681,6 +724,340 @@ def speech_input():
     str = ""
     str = "Bring the Woman a bottle and give it to her"
     return str
+
+def get_camera_pose():
+    """
+    Retrieve the camera pose transform from base_link to xtion_rgb_frame.
+
+    Returns:
+        PoseStamped: Camera pose in base_link frame
+    """
+    # Create TF buffer and listener
+    tf_buffer = tf2_ros.Buffer()
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
+
+    # Wait briefly to ensure TF is ready
+    rospy.sleep(1.0)
+
+    # Lookup transform
+    transform = tf_buffer.lookup_transform(
+        target_frame='base_link',
+        source_frame='xtion_rgb_frame',
+        time=rospy.Time(0),
+        timeout=rospy.Duration(5.0)
+    )
+
+    # Create PoseStamped from transform
+    camera_pose = PoseStamped()
+    camera_pose.header = transform.header
+    camera_pose.pose.position = transform.transform.translation
+    camera_pose.pose.orientation = transform.transform.rotation
+
+    return camera_pose
+
+def send_torso_goal(height, duration):
+    """
+    Sends a torso lift goal to the torso controller.
+    """
+    try:
+        # Create a publisher for the torso controller
+        pub = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=10)
+
+        # Wait to ensure the publisher is ready
+        rospy.sleep(0.5)
+
+        # Create JointTrajectory message
+        trajectory = JointTrajectory()
+
+        # Set up header
+        trajectory.header = Header()
+        trajectory.header.stamp = rospy.Time.now()
+        trajectory.header.frame_id = ''
+
+        # Set joint names
+        trajectory.joint_names = ['torso_lift_joint']
+
+        # Create trajectory point
+        point = JointTrajectoryPoint()
+        point.positions = [height]  # Set desired height
+        point.velocities = []  # Optional: can specify velocities if needed
+        point.accelerations = []  # Optional: can specify accelerations if needed
+        point.effort = []  # Optional: can specify effort if needed
+        point.time_from_start = rospy.Duration(duration)  # 10 seconds to reach the goal
+
+        # Add point to trajectory
+        trajectory.points.append(point)
+
+        # Publish the trajectory
+        pub.publish(trajectory)
+
+        return True
+
+    except Exception as e:
+        rospy.logerr(f"Error sending torso goal: {e}")
+        return False
+
+def send_gripper_goal(x, y, z):
+
+    return False
+
+def start_wbc():
+    # Wait for services to become available
+    rospy.wait_for_service('/controller_manager/switch_controller')
+    rospy.wait_for_service('/controller_manager/unload_controller')
+
+    # Switch controllers
+    try:
+        rospy.wait_for_service('/controller_manager/switch_controller')
+        switch_controller_service = rospy.ServiceProxy('/controller_manager/switch_controller', SwitchController)
+
+        # Construct request directly
+        switch_controller_request = {
+            "start_controllers": ['whole_body_kinematic_controller'],
+            "stop_controllers": ['head_controller', 'arm_left_controller', 'arm_right_controller', 'torso_controller'],
+            "strictness": 0  # STRICT
+        }
+
+        # Call service
+        switch_controller_service(**switch_controller_request)
+        print("switched_controller")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Failed to switch controllers: {e}")
+        return
+    #time.sleep(5)
+    # Unload controller
+    try:
+        rospy.wait_for_service('/controller_manager/unload_controller')
+        unload_controller_service = rospy.ServiceProxy('/controller_manager/unload_controller', UnloadController)
+
+        # Call service directly with required argument
+        unload_controller_service(name='whole_body_kinematic_controller')
+        print("unload_controller")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Failed to unload controller: {e}")
+        return
+    #time.sleep(5)
+    # Launch tiago_dual_wbc
+    try:
+
+        # Suppress subprocess output by redirecting stdout and stderr
+        proc1 = subprocess.Popen(['roslaunch', 'tiago_dual_wbc', 'tiago_dual_wbc.launch'],
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+        print("tiago_dual_wbc.launch")
+        time.sleep(10)
+        proc2 = subprocess.Popen(['roslaunch', 'tiago_dual_wbc', 'push_reference_tasks.launch',
+                          'source_data_arm:=topic_reflexx_typeII',
+                          'source_data_gaze:=topic'],
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+        print("push_reference_tasks.launch")
+        time.sleep(10)
+    except Exception as e:
+        rospy.logerr(f"Failed to launch tiago_dual_wbc: {e}")
+        return
+    print("wbc_started")
+    return proc1, proc2
+
+def end_wbc(proc1, proc2):
+    """
+    Stops the whole_body_kinematic_controller and starts individual controllers
+    for arms and torso.
+    """
+    # Stop proc1
+    os.kill(proc1.pid, signal.SIGTERM)
+    print(f"Stopped process with PID {proc1.pid}")
+
+    # Stop proc2
+    os.kill(proc2.pid, signal.SIGTERM)
+    print(f"Stopped process with PID {proc2.pid}")
+
+    try:
+        # Wait for the service to be available
+        rospy.wait_for_service('/controller_manager/switch_controller')
+
+        # Create a service proxy
+        switch_controller_service = rospy.ServiceProxy('/controller_manager/switch_controller', SwitchController)
+
+        # Define controllers to start and stop
+        start_controllers = ['arm_left_controller', 'arm_right_controller', 'torso_controller']
+        stop_controllers = ['head_controller', 'whole_body_kinematic_controller']
+
+        # Call the service
+        response = switch_controller_service(
+            start_controllers=start_controllers,
+            stop_controllers=stop_controllers,
+            strictness=0  # BEST_EFFORT mode
+        )
+
+        if response.ok:
+            rospy.loginfo("Successfully switched controllers.")
+        else:
+            rospy.logerr("Failed to switch controllers.")
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call to switch_controller failed: {e}")
+    except rospy.ROSException as e:
+        rospy.logerr(f"Timeout waiting for switch_controller service: {e}")
+    print("wbc_stopped")
+
+def goal_wbc(x, y, z):
+    """
+    Sends a goal pose to the whole body kinematic controller.
+    """
+
+    # Initialize ROS node if not already initialized
+    if not rospy.get_node_uri():
+        rospy.init_node('goal_wbc_node', anonymous=True)
+
+    # Publisher for the goal pose
+    pub = rospy.Publisher('/whole_body_kinematic_controller/arm_left_tool_link_goal', PoseStamped, queue_size=10)
+
+    rospy.sleep(1)  # Allow publisher to initialize
+
+    # Create and populate PoseStamped message
+    pose_msg = PoseStamped()
+    pose_msg.header.frame_id = 'base_link'
+    pose_msg.pose.position.x = x
+    pose_msg.pose.position.y = y
+    pose_msg.pose.position.z = z
+    pose_msg.pose.orientation.x = 0.7071068
+    pose_msg.pose.orientation.y = 0.0
+    pose_msg.pose.orientation.z = 0.0
+    pose_msg.pose.orientation.w = 0.7071068
+
+    # Publish the pose multiple times to ensure the controller receives it
+    rate = rospy.Rate(10)  # 10 Hz
+    for _ in range(10):
+        pose_msg.header.stamp = rospy.Time.now()
+        pub.publish(pose_msg)
+        rate.sleep()
+
+    # Optional sleep to allow the controller to act on the command
+    time.sleep(10)
+
+def grasp(obj_search=["bottle"]):
+
+    is_middle = False
+    distance = 0.7
+    send_torso_goal(0, 2)
+    for i in [x * 0.01 for x in range(31)]:
+        send_torso_goal(i, 1)
+
+        object_list = call_yolo_service(obj_search, with_xy=True)
+        print(object_list)
+
+        # Check if the target object is in the detected list and within 1 meter
+        for obj in object_list:
+            obj_name, distance, x, y = obj
+            if obj_name in obj_search:# and (distance < 1.6 or math.isnan(distance)):
+                if y > 240:
+                    is_middle = True
+        if is_middle:
+            print("is in middle")
+            break
+
+    # Get the camera's pose in the base_link frame
+    camera_pose_base_link = get_camera_pose()
+
+    # Assume the object is along the camera's x-axis in its frame
+    # Camera frame (xtion_rgb_frame) axes: x (forward), y (right), z (down)
+    # Let's place the object at a distance from the camera along its x-axis
+    object_position_in_camera_frame = Point(distance, 0, 0)  # Object at 'distance' along the camera's x-axis
+
+    # Now we need to transform this object position into the base_link frame
+    # In this case, we directly add the camera's position to the object position:
+    object_position_in_base_link = Point(
+        camera_pose_base_link.pose.position.x + object_position_in_camera_frame.x,
+        camera_pose_base_link.pose.position.y + object_position_in_camera_frame.y,
+        camera_pose_base_link.pose.position.z + object_position_in_camera_frame.z
+    )
+
+    # Print the object's position in the base_link frame
+    print(f"Object position in base_link frame: x={object_position_in_base_link.x}, "
+          f"y={object_position_in_base_link.y}, z={object_position_in_base_link.z}")
+    proc1, proc2 = start_wbc()
+    goal_wbc(object_position_in_base_link.x, object_position_in_base_link.y, object_position_in_base_link.z)
+    time.sleep(10)
+    goal_wbc(object_position_in_base_link.x-0.2, object_position_in_base_link.y, object_position_in_base_link.z)
+    time.sleep(4)
+    close_gripper()
+    #goal_wbc(0.5, 0, 1)
+    end_wbc(proc1, proc2)
+    close_gripper()
+
+    return False
+
+def close_gripper():
+
+    # Create a publisher for the /parallel_gripper_left_controller/command topic
+    pub = rospy.Publisher('/parallel_gripper_left_controller/command', JointTrajectory, queue_size=10)
+
+    # Create the JointTrajectory message
+    joint_traj = JointTrajectory()
+
+    # Header information
+    header = Header()
+    header.seq = 0
+    header.stamp = rospy.Time(0)  # Time should be set to 0 for now
+    header.frame_id = ''
+
+    # Set header
+    joint_traj.header = header
+
+    # Set joint names
+    joint_traj.joint_names = ['parallel_gripper_joint']
+
+    # Create the point
+    point = JointTrajectoryPoint()
+    point.positions = [0.0]  # Assuming 0 is the closed position
+    point.velocities = []
+    point.accelerations = []
+    point.effort = []
+    point.time_from_start = rospy.Duration(1.0)  # 1 second to close
+
+    # Add point to the trajectory
+    joint_traj.points.append(point)
+
+    # Publish the message
+    rospy.loginfo("Publishing JointTrajectory message to close the gripper")
+    pub.publish(joint_traj)
+    time.sleep(5)
+
+def open_gripper():
+
+    # Create a publisher for the /parallel_gripper_left_controller/command topic
+    pub = rospy.Publisher('/parallel_gripper_left_controller/command', JointTrajectory, queue_size=10)
+
+    # Create the JointTrajectory message
+    joint_traj = JointTrajectory()
+
+    # Header information
+    header = Header()
+    header.seq = 1
+    header.stamp = rospy.Time(0)  # Time should be set to 0 for now
+    header.frame_id = ''
+
+    # Set header
+    joint_traj.header = header
+
+    # Set joint names
+    joint_traj.joint_names = ['parallel_gripper_joint']
+
+    # Create the point
+    point = JointTrajectoryPoint()
+    point.positions = [0.0]  # Assuming 0 is the closed position
+    point.velocities = []
+    point.accelerations = []
+    point.effort = []
+    point.time_from_start = rospy.Duration(1.0)  # 1 second to close
+
+    # Add point to the trajectory
+    joint_traj.points.append(point)
+
+    # Publish the message
+    rospy.loginfo("Publishing JointTrajectory message to close the gripper")
+    pub.publish(joint_traj)
+    time.sleep(5)
 
 ## I tried unstructured but it is trash
 def test(): # add a History of some past taken actions and add a time to them
@@ -840,25 +1217,43 @@ def main(): # add a History of some past taken actions and add a time to them
     rospy.loginfo("Node started and will call services in a loop.")
     all_found_objects_with_twist = {}
     print("Start... \n\n")
-    """
+    open_gripper()
+    proc1, proc2 = start_wbc()
+    end_wbc(proc1, proc2)
+    open_gripper()
+    send_torso_goal(0.2, 1)
+
+    #start_wbc()
+    #time.sleep(10)
+    #goal_wbc(0.8, 0, 1)
+    #time.sleep(10)
+    #grasp()
+
+    #sys.exit()
+
     obj = []
     # - for right + for left
-    obj.extend(scan_environment())  # use extend and not append
-    detected_objects = obj
+    #obj.extend(scan_environment())  # use extend and not append
+    detected_objects = call_yolo_service(["bottle"])
 
     print(detected_objects)
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+    print(detected_objects)
 
     if len(all_found_objects_with_twist) == 0:
         all_found_objects_with_twist = find_object_pose(detected_objects)
     else:
         all_found_objects_with_twist.update(find_object_pose(detected_objects))
+    print(all_found_objects_with_twist["bottle"])
 
-    print(all_found_objects_with_twist["woman"])
-
-    navigate_to_point(target_pose=all_found_objects_with_twist["woman"])
+    navigate_to_point(target_pose=all_found_objects_with_twist["bottle"])
     rospy.sleep(10)
-    fine_positioning(obj_search=["woman"])
+    fine_positioning(obj_search=["bottle"])
+    grasp()
+
+    sys.exit()
+    """
+
     ------------
     print("Scanning the environment...")
     detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
