@@ -13,6 +13,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from matplotlib.path import Path
 from std_msgs.msg import Header
+from std_srvs.srv import Empty
 
 from controller_manager_msgs.srv import SwitchController, UnloadController
 
@@ -981,10 +982,15 @@ def grasp(obj_search=["bottle"]):
     goal_wbc(object_position_in_base_link.x-0.2, object_position_in_base_link.y, object_position_in_base_link.z)
     time.sleep(4)
     close_gripper()
-    #goal_wbc(0.5, 0, 1)
-    end_wbc(proc1, proc2)
-    close_gripper()
 
+    # close the gripper
+    _grasp_service = rospy.ServiceProxy('/parallel_gripper_left_controller/grasp', Empty)
+    _grasp_service()
+
+
+    goal_wbc(0.5, 0, 1)
+    end_wbc(proc1, proc2)
+    #close_gripper()
     return False
 
 def close_gripper():
@@ -1220,7 +1226,9 @@ def main(): # add a History of some past taken actions and add a time to them
     open_gripper()
     proc1, proc2 = start_wbc()
     end_wbc(proc1, proc2)
-    open_gripper()
+
+    sys.exit()
+    # open_gripper()
     send_torso_goal(0.2, 1)
 
     #start_wbc()

@@ -72,6 +72,8 @@ class YoloBrain:
                 y = int((y2-y1)/2) + y1
                 depth_value = self.depth_image[y, x]
                 msg.depth = depth_value
+                msg.x = x
+                msg.y = y
                 
                 detected_objects.append(msg)
         return InfYoloResponse(objects=detected_objects)

@@ -18,7 +18,7 @@ from cv_bridge import CvBridge
 '''
 
 class VisionBrain:
-    def __init__(self, model_name="minicpm-v:8b", system_prompt="", keep_alive='10s', sub_topic=''): #minicpm-v:8b-2.6-fp16
+    def __init__(self, model_name="minicpm-v:8b", system_prompt="", keep_alive='3m', sub_topic=''): #minicpm-v:8b-2.6-fp16
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.keep_alive = keep_alive
