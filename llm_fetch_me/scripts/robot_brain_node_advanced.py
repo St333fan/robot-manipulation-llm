@@ -79,7 +79,7 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         img = Image()
         request.image = img
         request.classes = classes
-        request.confidence = 0.1
+        request.confidence = 0.05
         
         response = trigger_service(request)
         rospy.loginfo("Yolo called with response:")
@@ -95,9 +95,9 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         for detected_object in response.objects:
             # Append each object's class_name and depth as a sublist
             if with_xy:
-                obj.append([detected_object.class_name, round(detected_object.depth, 1), detected_object.x, detected_object.y])
+                obj.append([detected_object.class_name, round(detected_object.depth, 2), detected_object.x, detected_object.y])
             else:
-                obj.append([detected_object.class_name, round(detected_object.depth, 1)])
+                obj.append([detected_object.class_name, round(detected_object.depth, 2)])
     else:
         print("No objects detected in the response")
     return obj
@@ -133,7 +133,7 @@ def publish_cmd_vel(linear_x=0.0, linear_y=0.0, linear_z=0.0, angular_x=0.0, ang
     pub.publish(stop_cmd)
     rospy.loginfo("Stopped publishing")
 
-def scan_environment(task_objects=["bottle"]): # add objects taken from task or give it the Task Reasonong objects
+def scan_environment(task_objects=["bottle","table"]): # add objects taken from task or give it the Task Reasonong objects
     print("VIT")
     vit_results = call_vit_service()
 
@@ -359,7 +359,6 @@ def point_to_edge_distance_with_buffer(point, edge_start, edge_end, buffer_dista
     distance = np.linalg.norm(point - buffer_adjusted_point)
     return buffer_adjusted_point, distance
 
-
 def find_nearest_outside_point_with_buffer(polygon, point_inside, buffer_distance):
     """
     Find the nearest point outside the polygon to the given point inside, with a buffer.
@@ -544,15 +543,18 @@ def drive_to(location=PoseStamped()):
 def navigate_to_point(target_pose=PoseStamped(), buffer_distance=0.5):
     """
     Determines the navigation point based on the target's relation to tables.
-    target_pose: PoseStamped, target point in map frame
-    buffer_distance: float, buffer distance to keep from tables or shorten drive
 
-    When the point is in a forbidden zone it drives to another point outside, when it drives to a location
-    which is not it will stop buffer_distance away
+    Args:
+        target_pose (PoseStamped): Target point in map frame
+        buffer_distance (float): Buffer distance to keep from tables or shorten drive
+
+    When the point is in a forbidden zone, it drives to another point outside.
+    When driving to a location not in a forbidden zone, it will stop buffer_distance away.
     """
     # Extract position from PoseStamped
     target_point = np.array([target_pose.pose.position.x, target_pose.pose.position.y])
     print(target_point)
+
     # Parse table coordinates
     table1_coords, table2_coords = parse_table_coordinates('/home/user/exchange/map_1/mmap.yaml')
 
@@ -565,35 +567,39 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=0.5):
         rospy.logwarn(f"Failed to get current robot pose: {str(e)}")
         return  # Exit if robot position is unavailable
 
-    if Path(table1_coords).contains_point(target_point):# and False:
-        print("q")
+    # Check if target point is inside table boundaries
+    if Path(table1_coords).contains_point(target_point):
         rospy.loginfo("Point is inside Table 1, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table1_coords, target_point, buffer_distance)
-    elif Path(table2_coords).contains_point(target_point):# and False:
-        print("here")
+
+    elif Path(table2_coords).contains_point(target_point):
         rospy.loginfo("Point is inside Table 2, navigating to nearest outside point.")
         point_to_drive = find_nearest_outside_point_with_buffer(table2_coords, target_point, buffer_distance)
+
     else:
-        print("HBdjbgkjnfsdgsbdlfgnbsdlfbijsdfnbisdnfbvinsdfkvnsdhjfvjsdfv")
         rospy.loginfo("Point is outside both tables, navigating to a closer point.")
+
         # Compute vector from robot to target
         vector_to_target = target_point - robot_position
         distance_to_target = np.linalg.norm(vector_to_target)
 
-        buffer_distance = 0.4 # for testing
+        buffer_distance = 0.4  # for testing
+
         if distance_to_target > buffer_distance:
             # Shorten the distance by buffer_distance
             point_to_drive = robot_position + (vector_to_target / distance_to_target) * (
                         distance_to_target - buffer_distance)
-            point_to_drive[1] = point_to_drive[1] # hmm strange
+            point_to_drive[1] = point_to_drive[1]  # Note: This seems redundant
+
         else:
             rospy.logwarn("Target is within buffer distance; navigating directly to target.")
             point_to_drive = target_point
-            if point_to_drive[1]>0: # test
-                point_to_drive[1] = point_to_drive[1]-0.4
+
+            # Adjust y-coordinate slightly based on its sign
+            if point_to_drive[1] > 0:
+                point_to_drive[1] = point_to_drive[1] - 0.4
             else:
                 point_to_drive[1] = point_to_drive[1] + 0.4
-
 
     # Convert point to PoseStamped
     pose = PoseStamped()
@@ -601,9 +607,26 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=0.5):
     pose.pose.position.x = point_to_drive[0]
     pose.pose.position.y = point_to_drive[1]
     pose.pose.position.z = 0.0
-    pose.pose.orientation.w = 1.0  # Default forward orientation
-    print(pose)
+    #pose.pose.orientation.w = 1.0  # Default forward orientation
 
+    # works sometime when the depth can be found
+    # Calculate orientation to face the original target
+    dx = target_pose.pose.position.x - point_to_drive[0]
+    dy = target_pose.pose.position.y - point_to_drive[1]
+
+    # Calculate the angle using arctan2
+    target_angle = math.atan2(dy, dx)
+
+    # Convert ang
+    # le to quaternion
+    quaternion = quaternion_from_euler(0, 0, round(target_angle, 1))
+
+    pose.pose.orientation.x = quaternion[0]
+    pose.pose.orientation.y = quaternion[1]
+    pose.pose.orientation.z = quaternion[2]
+    pose.pose.orientation.w = quaternion[3]
+
+    print(pose)
     drive_to(pose)
 
 def publish_head_position():
@@ -684,8 +707,12 @@ def fine_positioning(obj_search=["Coca Cola can"]):
     # Publish rotation command
     pub.publish(rotate_cmd)
     rate.sleep()
-
+    start_time = time.time()
     while not rospy.is_shutdown():
+        if time.time() - start_time > 30:  # Break loop if 30 seconds have passed
+            print("Timeout reached. Exiting loop.")
+            break
+
         print("Searching for object")
         object_list = call_yolo_service(obj_search)  # Get detected objects and distances
         print(object_list)
@@ -709,7 +736,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
                                 rotate_cmd.angular.z = -0.1
                             else:
                                 pub.publish(stop_cmd)  # Send stop command
-                                return None  # Exit once the object is found within range
+                                return True  # Exit once the object is found within range
                             rate = rospy.Rate(3)  # 3 Hz control loop
                             # Publish rotation command
                             pub.publish(rotate_cmd)
@@ -719,7 +746,8 @@ def fine_positioning(obj_search=["Coca Cola can"]):
         pub.publish(rotate_cmd)
         rate.sleep()
 
-    return None
+    pub.publish(stop_cmd)
+    return False
 
 def speech_input():
     str = ""
@@ -765,7 +793,7 @@ def send_torso_goal(height, duration):
         pub = rospy.Publisher('/torso_controller/command', JointTrajectory, queue_size=10)
 
         # Wait to ensure the publisher is ready
-        rospy.sleep(0.5)
+        rospy.sleep(3)
 
         # Create JointTrajectory message
         trajectory = JointTrajectory()
@@ -936,13 +964,108 @@ def goal_wbc(x, y, z):
     # Optional sleep to allow the controller to act on the command
     time.sleep(10)
 
+def find_point_camera_coord__(x_pixel, y_pixel, distance):
+    """
+    Calculate the 3D position of a point in the robot's coordinate frame.
+
+    Args:
+        x_pixel (float): The X pixel coordinate of the point.
+        y_pixel (float): The Y pixel coordinate of the point.
+        distance (float): The distance from the camera along the optical axis in meters.
+
+    Returns:
+        Point: The position of the point in the robot's coordinate frame.
+    """
+    # Camera intrinsic parameters
+    K = [522.1910329546544, 0.0, 320.5,
+         0.0, 522.1910329546544, 240.5,
+         0.0, 0.0, 1.0]
+
+    # Extract fx, fy, cx, cy from K
+    fx = K[0]  # Focal length in X direction
+    fy = K[4]  # Focal length in Y direction
+    cx = K[2]  # Principal point x-coordinate
+    cy = K[5]  # Principal point y-coordinate
+
+    # Calculate the 3D coordinates in the camera frame
+    x_camera = distance  # X coordinate in camera frame (along the optical axis)
+    y_camera = (y_pixel - cy) * distance / fy  # Y coordinate in camera frame
+    z_camera = (x_pixel - cx) * distance / fx  # Z coordinate in camera frame
+
+    # Transform to the robot's coordinate frame
+    x_robot = x_camera  # X in robot frame is X in camera frame
+    y_robot = -z_camera  # Y in robot frame is -Z in camera frame
+    z_robot = -y_camera  # Z in robot frame is Y in camera frame
+
+    # Create the Point object for the robot's coordinate frame
+    object_position_in_robot_frame = Point(x_robot, y_robot, z_robot)
+    return object_position_in_robot_frame
+
+def find_point_camera_coord(x_pixel, y_pixel, distance):
+    """
+    Calculate the 3D position of a point in the camera's coordinate frame.
+    Args:
+        x_pixel (float): The X pixel coordinate of the point (increasing left to right).
+        y_pixel (float): The Y pixel coordinate of the point (increasing top to bottom).
+        distance (float): The distance from the camera along the optical axis in meters.
+    Returns:
+        Point: The position of the point in the camera's coordinate frame.
+    """
+    # Camera intrinsic parameters
+    K = [522.1910329546544, 0.0, 320.5,
+         0.0, 522.1910329546544, 240.5,
+         0.0, 0.0, 1.0]
+
+    # Extract fx, fy, cx, cy from K
+    fx = K[0]  # Focal length in X direction
+    fy = K[4]  # Focal length in Y direction
+    cx = K[2]  # Principal point x-coordinate
+    cy = K[5]  # Principal point y-coordinate
+
+    # Calculate the 3D coordinates in the camera frame
+    z_camera = distance  # Z coordinate is the distance from the camera
+    x_camera = (x_pixel - cx) * distance / fx  # X coordinate (horizontal, left to right)
+    y_camera = -(y_pixel - cy) * distance / fy  # Y coordinate (vertical, top to bottom, negated)
+
+    # Create the Point object for the camera's coordinate frame
+    return Point(x_camera, y_camera, z_camera)
+
+def transform_camera_to_base_link(camera_pose, point_in_camera_frame):
+    """
+    Transform a point from camera frame to base_link frame.
+
+    Args:
+        camera_pose (PoseStamped): Pose of the camera in base_link frame
+        point_in_camera_frame (Point): Point coordinates in camera frame
+
+    Returns:
+        Point: Point coordinates in base_link frame
+    """
+    # Extract camera pose
+    camera_x = camera_pose.pose.position.x
+    camera_y = camera_pose.pose.position.y
+    camera_z = camera_pose.pose.position.z
+
+    # Apply translation
+    object_position_in_base_link = Point(
+        camera_x + point_in_camera_frame.z,  # camera z becomes base_link x
+        camera_y - point_in_camera_frame.x,  # camera x becomes base_link y (negated)
+        camera_z - point_in_camera_frame.y - 0.2   # camera y becomes base_link z (negated)
+    )
+
+    return object_position_in_base_link
+
 def grasp(obj_search=["bottle"]):
 
     is_middle = False
     distance = 0.7
-    send_torso_goal(0, 2)
+    send_torso_goal(0, 5)
+    x = y = 0
+    distance = 0.8
+
     for i in [x * 0.01 for x in range(31)]:
-        send_torso_goal(i, 1)
+        send_torso_goal(i, 5)
+        time.sleep(2)
 
         object_list = call_yolo_service(obj_search, with_xy=True)
         print(object_list)
@@ -956,39 +1079,52 @@ def grasp(obj_search=["bottle"]):
         if is_middle:
             print("is in middle")
             break
-
+    """
     # Get the camera's pose in the base_link frame
     camera_pose_base_link = get_camera_pose()
 
     # Assume the object is along the camera's x-axis in its frame
     # Camera frame (xtion_rgb_frame) axes: x (forward), y (right), z (down)
     # Let's place the object at a distance from the camera along its x-axis
-    object_position_in_camera_frame = Point(distance, 0, 0)  # Object at 'distance' along the camera's x-axis
-
+    #object_position_in_camera_frame = Point(distance, 0, 0)  # Object at 'distance' along the camera's x-axis
+    
+    print(x)
+    print(y)
+    object_position_in_camera_frame = find_point_camera_coord(x,y,distance)
+    print(object_position_in_camera_frame)
     # Now we need to transform this object position into the base_link frame
     # In this case, we directly add the camera's position to the object position:
+    #object_position_in_camera_frame = Point(distance, 0, 0)
     object_position_in_base_link = Point(
         camera_pose_base_link.pose.position.x + object_position_in_camera_frame.x,
         camera_pose_base_link.pose.position.y + object_position_in_camera_frame.y,
-        camera_pose_base_link.pose.position.z + object_position_in_camera_frame.z
+        camera_pose_base_link.pose.position.z# + object_position_in_camera_frame.z
     )
+    """
+    camera_pose_base_link = get_camera_pose()
+    point_in_camera_frame = find_point_camera_coord(x, y, distance)
+    object_position_in_base_link = transform_camera_to_base_link(camera_pose_base_link, point_in_camera_frame)
 
     # Print the object's position in the base_link frame
     print(f"Object position in base_link frame: x={object_position_in_base_link.x}, "
           f"y={object_position_in_base_link.y}, z={object_position_in_base_link.z}")
+
     proc1, proc2 = start_wbc()
+    _release_service = rospy.ServiceProxy('/parallel_gripper_left_controller/release', Empty)
+    _release_service()
+
+    goal_wbc(object_position_in_base_link.x-0.1, object_position_in_base_link.y, object_position_in_base_link.z)
+    time.sleep(2)
     goal_wbc(object_position_in_base_link.x, object_position_in_base_link.y, object_position_in_base_link.z)
-    time.sleep(10)
-    goal_wbc(object_position_in_base_link.x-0.2, object_position_in_base_link.y, object_position_in_base_link.z)
-    time.sleep(4)
+    time.sleep(2)
     close_gripper()
 
     # close the gripper
     _grasp_service = rospy.ServiceProxy('/parallel_gripper_left_controller/grasp', Empty)
     _grasp_service()
 
-
-    goal_wbc(0.5, 0, 1)
+    goal_wbc(0.3, -0.3, 1)
+    
     end_wbc(proc1, proc2)
     #close_gripper()
     return False
@@ -1051,7 +1187,7 @@ def open_gripper():
 
     # Create the point
     point = JointTrajectoryPoint()
-    point.positions = [0.0]  # Assuming 0 is the closed position
+    point.positions = [1.0]  # Assuming 0 is the closed position
     point.velocities = []
     point.accelerations = []
     point.effort = []
@@ -1061,7 +1197,7 @@ def open_gripper():
     joint_traj.points.append(point)
 
     # Publish the message
-    rospy.loginfo("Publishing JointTrajectory message to close the gripper")
+    rospy.loginfo("Publishing JointTrajectory message to open the gripper")
     pub.publish(joint_traj)
     time.sleep(5)
 
@@ -1224,19 +1360,28 @@ def main(): # add a History of some past taken actions and add a time to them
     all_found_objects_with_twist = {}
     print("Start... \n\n")
     open_gripper()
+
     proc1, proc2 = start_wbc()
     end_wbc(proc1, proc2)
+    print("wait")
+    time.sleep(1)
 
-    sys.exit()
-    # open_gripper()
-    send_torso_goal(0.2, 1)
+    # sys.exit()
+    open_gripper()
+    #send_torso_goal(0.1, duration=5)
 
+    #send_torso_goal(0.0, 5)
+    #time.sleep(2)
+    send_torso_goal(0.1, 5)
+    time.sleep(2)
+    #time.sleep(4)
+    """
     #start_wbc()
     #time.sleep(10)
     #goal_wbc(0.8, 0, 1)
     #time.sleep(10)
-    #grasp()
 
+    #grasp(obj_search=["bottle"])
     #sys.exit()
 
     obj = []
@@ -1257,9 +1402,10 @@ def main(): # add a History of some past taken actions and add a time to them
     navigate_to_point(target_pose=all_found_objects_with_twist["bottle"])
     rospy.sleep(10)
     fine_positioning(obj_search=["bottle"])
-    grasp()
+    grasp(obj_search=["bottle"])
 
     sys.exit()
+    """
     """
 
     ------------
@@ -1272,26 +1418,26 @@ def main(): # add a History of some past taken actions and add a time to them
     sys.exit()
     """
 
-    past_reasoning = ""
+    mode_feedback = ""
     is_start = True
     # Define variables for different sections
     modes = {
         "SPEECH": "Only possible nearby a Human below 2m distance",
         "SCAN": "Scan environment fo find known_objects",
         "NAVIGATE": "Move to known_objects",
-        "PICKUP": "Grab known_object, location_robot must be at known_object",
+        "PICKUP": "Grab known_object, needs to be below 1.5m distance",
         "PLACE": "Put down holding_object"
     }
 
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
     instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"  # "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
-    instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances"
+    instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances and the implications/shortcomings your choices have."
     # instructions = "Reply in expected_response JSON format. Before the JSON, analyze mode-object interactions, mode order, and distances. Keep the JSON brief."
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "if_navigation_needed",  # if_navigation_needed
+        "target_object": "None or navigation or specific_scan_object",  # if_navigation_needed
     }
 
     # Variables for context
@@ -1309,7 +1455,7 @@ def main(): # add a History of some past taken actions and add a time to them
         context = {
             "modes": modes,
             "task": robot_current_task,
-            "history": recent_mode,
+            "modes_history": recent_mode,
             "known_objects": detected_objects,
             "location_robot": current_location,
             "holding_object": current_held_object,
@@ -1320,10 +1466,12 @@ def main(): # add a History of some past taken actions and add a time to them
             "prompt": prompt,
             "context": context,
             "instructions": instructions,
+            "mode_feedback": mode_feedback,
             "expected_response": expected_response
         }
 
-        que = "PAST REASONING\n" + past_reasoning + "\nCURRENT INFORMATION\n" + json.dumps(question, indent=1)
+        que = json.dumps(question, indent=1)
+        mode_feedback = ""
         print(que)
         if parse_error:
             llm_answer = call_llm_service(
@@ -1370,12 +1518,28 @@ def main(): # add a History of some past taken actions and add a time to them
             print("Acquiring a new task...")
             robot_current_task = speech_input()
             # Add logic to acquire a new task
+
         elif next_mode == "SCAN": #detected_objects_twist is bad coding
+            if target_object != "None":
+                print("Scanning the environment for specific object")
+                if False or fine_positioning(obj_search=[target_object]):
+                    objs_scan = call_yolo_service(detect_objects)
+
+                    dec_obj = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
+                    detected_objects.append(dec_obj)
+                    # detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
+                    all_found_objects_with_twist.update(find_object_pose(dec_obj))
+                    continue
+                else:
+                    mode_feedback = "LAST MODE SCAN COULD NOT FIND "+ target_object +" AT CURRENT LOACTION"
+                    continue
+
             print("Scanning the environment...")
             detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
-            #print(detected_objects)
+
             # Transform the data to match the required style
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+
             #print(detected_objects)
             #detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
 
@@ -1384,41 +1548,55 @@ def main(): # add a History of some past taken actions and add a time to them
             else:
                 all_found_objects_with_twist.update(detected_objects_twist)
 
-            # Add logic to scan the environment
         elif next_mode == "NAVIGATE": # make a difference from space to object, cant drive to near to space but can
             # drive near to object
             print("Navigating to the specified object...")
-            # print(all_found_objects_with_twist)
-            #print(detected_objects)
-            #print(all_found_objects_with_twist)
-            #print(all_found_objects_with_twist[target_object])
             navigate_to_point(target_pose=all_found_objects_with_twist[target_object])
 
-            rospy.sleep(20)
+            rospy.sleep(30)
+            send_torso_goal(0.1, 5)
+            time.sleep(2)
             if target_object != "kitchen":
                 fine_positioning(obj_search=[target_object])
             current_location = target_object  # No specific location
             detected_objects = objects_pose_to_distance(all_found_objects_with_twist)
+            detected_objects_no_style = detected_objects
+            detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
 
+        # Process known_objects for the PICKUP mode
         elif next_mode == "PICKUP":
-            current_held_object = target_object
-            print("Picking up the object...")
-            # Add logic to pick up the object
+            for obj in detected_objects_no_style:
+                object_name, distance = obj
+                # Check if the object is the target and within 1.5 meters
+                if object_name == target_object:
+                    if distance <= 1.5:
+                        # Object is nearby, attempt to grasp
+                        grasp(obj_search=[target_object])
+                        current_held_object = target_object
+                        print(f"Picking up the {target_object}...")
+                        break
+                    else:
+                        # Object is too far
+                        env_feedback = f"Object can't be grasped because it is {distance}m away (too far)"
+                        print(env_feedback)
+                        break
+            else:
+                # No target object found
+                env_feedback = "Object not detected in the environment"
+                print(env_feedback)
+
         elif next_mode == "PLACE":
             print("Placing the object...")
+            open_gripper()
             break
-            # Add logic to place the object
+
         else:
             print(f"Unknown mode: {next_mode}")
             parse_error = True
             # Handle unexpected mode
 
         # Variables for context
-        #robot_current_task = "Find a Task-Giver"
-        recent_mode = next_mode #question["context"]["previous_modes"]+"-->"+str(next_mode)  # Empty history
-        #detected_objects = []  # Empty known objects list
-        #current_location = None  # No specific location
-        #current_held_object = None  # Not holding anything
+        recent_mode = next_mode
 
         rospy.loginfo("All services have been called in this cycle.")
         rate.sleep()
