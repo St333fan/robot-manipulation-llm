@@ -102,7 +102,7 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         print("No objects detected in the response")
     return obj
 
-def call_whisper():
+def call_whisper(): # should be implemented
     return None
 
 # Function to publish a message to the /mobile_base_controller/cmd_vel topic # for now it is a test function
@@ -187,14 +187,14 @@ def scan_environment(task_objects=["bottle","table"]): # add objects taken from 
     return call_yolo_service(detect_objects)
     #return call_yolo_service(["bottle","table","white object"])
 
-def scan_environment_pipeline():
+def scan_environment_pipeline(goal1=30, goal2=-90):
     """
     :return: all found objects in environment
     """
     objs = []
     obj_twist = {}
     # - for right + for left
-    send_rotation_goal(30)
+    send_rotation_goal(goal1)
     rospy.sleep(5)
     objs_scan = scan_environment()
     objs.extend(objs_scan) # use extend and not append
@@ -203,7 +203,7 @@ def scan_environment_pipeline():
     obj_twist = find_object_pose(detected_objects)
     #print(obj_twist)
 
-    send_rotation_goal(-90)
+    send_rotation_goal(goal2)
     rospy.sleep(5)
     objs_scan = scan_environment()
     objs.extend(objs_scan)
@@ -749,9 +749,87 @@ def fine_positioning(obj_search=["Coca Cola can"]):
     pub.publish(stop_cmd)
     return False
 
-def speech_input():
+def speech_input_whisper():
     str = ""
     str = "Bring the Woman a bottle and give it to her"
+    return str
+
+def speech_output(question="Give me a Task?"):
+    print(question)
+
+def speech_input_vit_llm():
+    print("start speech_input_vit_llm")
+    str = ""
+    parse_error = False
+    get_speech = "yes"
+    get_attention = "no"
+    speech_question = "Give me a Task?"
+    vit_results = "Was not used, startup procedure going on..."
+
+    while not rospy.is_shutdown():
+        if not parse_error:
+            print("VIT")
+            vit_results = call_vit_service(question="Do the humans look towards the camera?")
+
+        prompt = "Determine if human is actively ready to interact based on visual cues. Use the results from a ViT."
+        context = {"vit_results": vit_results}
+        instructions = "Reason through what would make the most sense, decide if you should start speaking with them, if yes, ask them for a task. The human needs to look at you activly! ANSWER SHORT"
+
+        expected_response = {
+            "reasoning": "brief_explanation",
+            "speech": "only_yes_or_no",
+            "get_attention": "only_yes_or_no",
+            "question": "potential_question"
+        }
+
+        # Construct the full JSON object
+        question = {
+            "prompt": prompt,
+            "context": context,
+            "instructions": instructions,
+            "expected_response": expected_response
+        }
+
+        que = json.dumps(question, indent=1)
+
+        print("LLM")
+        print(que)
+        if parse_error:
+            llm_answer = call_llm_service(
+                question= que + " ERROR: could not parse last json output, answer again with valid json! Try to just write the Json\n\n",
+                reload=True, chat=False)
+            parse_error = False
+        else:
+            llm_answer = call_llm_service(question=que, reload=True, chat=False)
+        print(llm_answer)
+
+        # Extract JSON using regex
+        json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
+
+        if json_match:
+            json_string = json_match.group()
+            try:
+                # Parse the JSON
+                response = json.loads(json_string)
+
+                # Access the elements
+                reasoning = response["reasoning"]
+                get_speech = response["speech"]
+                get_attention = response["get_attention"]
+                speech_question = response["speech_question"]
+
+            except json.JSONDecodeError as e:
+                print("Error decoding JSON:", e)
+                parse_error = True
+                continue
+
+        if get_speech == "yes":
+            speech_output(question=speech_question)
+            str = speech_input_whisper()
+            break
+        if get_attention == "yes":
+            speech_output(question=speech_question)
+            continue
     return str
 
 def get_camera_pose():
@@ -1353,7 +1431,240 @@ def test(): # add a History of some past taken actions and add a time to them
         rospy.loginfo("All services have been called in this cycle.")
         rate.sleep()
 
-def main(): # add a History of some past taken actions and add a time to them
+def main_real():
+    rospy.init_node('prefrontal_cortex_node', anonymous=True)
+
+    # Initialize the ROS node
+    rospy.loginfo("Node started and will call services in a loop.")
+    all_found_objects_with_twist = {}
+    print("Start... \n\n")
+    open_gripper()
+
+    proc1, proc2 = start_wbc()
+    end_wbc(proc1, proc2)
+    print("wait")
+    time.sleep(1)
+
+    open_gripper()
+    send_torso_goal(0.1, 5)
+    time.sleep(2)
+    # time.sleep(4)
+
+    # start_wbc()
+    # time.sleep(10)
+    # goal_wbc(0.8, 0, 1)
+    # time.sleep(10)
+
+    # grasp(obj_search=["bottle"])
+    # sys.exit()
+
+    obj = []
+    # - for right + for left
+    # obj.extend(scan_environment())  # use extend and not append
+    detected_objects = call_yolo_service(["bottle"])
+
+    print(detected_objects)
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+    print(detected_objects)
+
+    if len(all_found_objects_with_twist) == 0:
+        all_found_objects_with_twist = find_object_pose(detected_objects)
+    else:
+        all_found_objects_with_twist.update(find_object_pose(detected_objects))
+    print(all_found_objects_with_twist["bottle"])
+
+    navigate_to_point(target_pose=all_found_objects_with_twist["bottle"])
+    rospy.sleep(10)2
+    fine_positioning(obj_search=["bottle"])
+    grasp(obj_search=["bottle"])
+
+    sys.exit()
+
+    print("Scanning the environment...")
+    detected_objects, detected_objects_twist = scan_environment_pipeline(goal1=-90, goal2=90)  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+    print(detected_objects)
+    # Transform the data to match the required style
+    detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+    print(detected_objects)
+    sys.exit()
+
+    mode_feedback = ""
+    is_start = True
+
+    # Define variables for different sections
+    modes = {
+        "SPEECH": "Only possible nearby a Human below 2m distance",
+        "SCAN": "Scan environment fo find known_objects",
+        "NAVIGATE": "Move to known_objects",
+        "PICKUP": "Grab known_object, needs to be below 1.5m distance",
+        "PLACE": "Put down holding_object"
+    }
+
+    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
+    instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances and the implications/shortcomings your choices have."
+
+    expected_response = {
+        "reasoning": "brief_explanation_based_on_the_task",
+        "next_mode": "selected_mode",
+        "target_object": "None or navigation or specific_scan_object",  # if_navigation_needed
+    }
+
+    # Variables for context
+    robot_current_task = "Find a human an ask him"
+    recent_mode = "None"  # Empty history
+    detected_objects = [["None", "None"]]  # Empty known objects list
+    current_location = "not_near_any_object"  # No specific location
+    current_held_object = "None"  # Not holding anything
+
+    parse_error = False
+    rate = rospy.Rate(1)
+
+    while not rospy.is_shutdown():
+        context = {
+            "modes": modes,
+            "task": robot_current_task,
+            "modes_history": recent_mode,
+            "known_objects": detected_objects,
+            "location_robot": current_location,
+            "holding_object": current_held_object,
+        }
+
+        # Construct the full JSON object
+        question = {
+            "prompt": prompt,
+            "context": context,
+            "instructions": instructions,
+            "mode_feedback": mode_feedback,
+            "expected_response": expected_response
+        }
+
+        que = json.dumps(question, indent=1)
+        mode_feedback = ""
+
+        print(que)
+        if parse_error:
+            llm_answer = call_llm_service(
+                question="ERROR: could not parse json, the \"next_mode\" and \"reasoning\", answer again with valid json! Try to just write the Json\n\n" + que,
+                reload=True, chat=False)
+            parse_error = False
+        else:
+            llm_answer = call_llm_service(question=que, reload=True, chat=False)
+        print(llm_answer)
+
+        # Extract JSON using regex
+        json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
+        if json_match:
+            json_string = json_match.group()
+            try:
+                # Parse the JSON
+                response = json.loads(json_string)
+
+                # Access the elements
+                next_mode = response["next_mode"]
+                target_object = response["target_object"]
+                reasoning = response["reasoning"]
+
+                # past_reasoning = past_reasoning + "reasoning: " + reasoning + "\n"
+
+                print(f"Reasoning: {reasoning}")
+                print(f"Next mode: {next_mode}")
+                print(f"Target object: {target_object}")
+
+            except json.JSONDecodeError as e:
+                print("Error decoding JSON:", e)
+                next_mode = ""
+        else:
+            next_mode = ""
+            print("No JSON object found in the response.")
+
+        if next_mode == "SPEECH":
+
+
+            print("Acquiring a new task...")
+            robot_current_task = speech_input()
+
+        elif next_mode == "SCAN":  # detected_objects_twist is bad coding
+            if target_object != "None":
+                print("Scanning the environment for specific object")
+                if False or fine_positioning(obj_search=[target_object]):
+                    objs_scan = call_yolo_service(detect_objects)
+
+                    dec_obj = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
+                    detected_objects.append(dec_obj)
+                    # detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
+                    all_found_objects_with_twist.update(find_object_pose(dec_obj))
+                    continue
+                else:
+                    mode_feedback = "LAST MODE SCAN COULD NOT FIND " + target_object + " AT CURRENT LOACTION"
+                    continue
+
+            print("Scanning the environment...")
+            detected_objects, detected_objects_twist = scan_environment_pipeline()  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+
+            # Transform the data to match the required style
+            detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+
+            # print(detected_objects)
+            # detected_objects = [["Human","5m away"], ["Beer","8m away"], ["Kitchen","5m away"]]
+
+            if len(all_found_objects_with_twist) == 0:
+                all_found_objects_with_twist = detected_objects_twist  # this is wrong is should be done after every scan before
+            else:
+                all_found_objects_with_twist.update(detected_objects_twist)
+
+        elif next_mode == "NAVIGATE":  # make a difference from space to object, cant drive to near to space but can
+            # drive near to object
+            print("Navigating to the specified object...")
+            navigate_to_point(target_pose=all_found_objects_with_twist[target_object])
+
+            rospy.sleep(10)  # look if it does stop then
+
+            send_torso_goal(0.1, 5)
+            rospy.sleep(2)
+            if target_object != "kitchen":
+                fine_positioning(obj_search=[target_object])
+            current_location = target_object  # No specific location
+            detected_objects = objects_pose_to_distance(all_found_objects_with_twist)
+            detected_objects_no_style = detected_objects
+            detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
+
+        elif next_mode == "PICKUP":
+            for obj in detected_objects_no_style:
+                object_name, distance = obj
+                # Check if the object is the target and within 1.5 meters
+                if object_name == target_object:
+                    if distance <= 1.5:
+                        # Object is nearby, attempt to grasp
+                        grasp(obj_search=[target_object])
+                        current_held_object = target_object
+                        print(f"Picking up the {target_object}...")
+                        break
+                    else:
+                        # Object is too far
+                        env_feedback = f"Object can't be grasped because it is {distance}m away (too far)"
+                        print(env_feedback)
+                        break
+            else:
+                # No target object found
+                env_feedback = "Object not detected in the environment"
+                print(env_feedback)
+
+        elif next_mode == "PLACE":
+            print("Placing the object...")
+            open_gripper()
+            break
+
+        else: # Handle unexpected mode
+            print(f"Unknown mode: {next_mode}")
+            parse_error = True
+
+        # Variables for context
+        recent_mode = next_mode
+
+        rospy.loginfo("All services have been called in this cycle.")
+        rate.sleep()
+
+def main_virtual(): # add a History of some past taken actions and add a time to them
     rospy.init_node('prefrontal_cortex_node', anonymous=True)
     # Initialize the ROS node
     rospy.loginfo("Node started and will call services in a loop.")
@@ -1366,16 +1677,11 @@ def main(): # add a History of some past taken actions and add a time to them
     print("wait")
     time.sleep(1)
 
-    # sys.exit()
     open_gripper()
-    #send_torso_goal(0.1, duration=5)
-
-    #send_torso_goal(0.0, 5)
-    #time.sleep(2)
     send_torso_goal(0.1, 5)
     time.sleep(2)
     #time.sleep(4)
-    """
+
     #start_wbc()
     #time.sleep(10)
     #goal_wbc(0.8, 0, 1)
@@ -1405,10 +1711,9 @@ def main(): # add a History of some past taken actions and add a time to them
     grasp(obj_search=["bottle"])
 
     sys.exit()
-    """
-    """
 
-    ------------
+
+
     print("Scanning the environment...")
     detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
     print(detected_objects)
@@ -1416,11 +1721,11 @@ def main(): # add a History of some past taken actions and add a time to them
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
     print(detected_objects)
     sys.exit()
-    """
+
 
     mode_feedback = ""
     is_start = True
-    # Define variables for different sections
+
     modes = {
         "SPEECH": "Only possible nearby a Human below 2m distance",
         "SCAN": "Scan environment fo find known_objects",
@@ -1429,11 +1734,9 @@ def main(): # add a History of some past taken actions and add a time to them
         "PLACE": "Put down holding_object"
     }
 
-    prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned** Start with the last mode in HISTORY, or START MODE if empty."
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
-    instructions = "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"  # "Reason through what would make the most sense, create a plan if all prerequisites for the whished mode are done.  ANSWER SHORT"
     instructions = "REPLY IN expected_response JSON FORMAT, ANSWER SUPER SHORT, before writing the JSON, make a CHAIN-OF-THOUGHT of your plan and why it makes sense, consider the distances and the implications/shortcomings your choices have."
-    # instructions = "Reply in expected_response JSON format. Before the JSON, analyze mode-object interactions, mode order, and distances. Keep the JSON brief."
+
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
@@ -1448,9 +1751,8 @@ def main(): # add a History of some past taken actions and add a time to them
     current_held_object = "None"  # Not holding anything
 
     parse_error = False
+    rate = rospy.Rate(1)
 
-    rate = rospy.Rate(1)  # Adjust the rate as needed (e.g., 1 Hz)
-    information = ""
     while not rospy.is_shutdown():
         context = {
             "modes": modes,
@@ -1479,16 +1781,11 @@ def main(): # add a History of some past taken actions and add a time to them
                 reload=True, chat=False)
             parse_error = False
         else:
-            # que = json.dumps("{\n\"prompt\": \"" + question["prompt"])+"\n\n"+json.dumps(question["context"])+"\n\n"+json.dumps(question["expected_response"])
-            # que = json.dumps(question)
-            # print(formatted_json)
             llm_answer = call_llm_service(question=que, reload=True, chat=False)
-        # print(que)
         print(llm_answer)
 
         # Extract JSON using regex
         json_match = re.search(r'\{.*\}', llm_answer, re.DOTALL)
-
         if json_match:
             json_string = json_match.group()
             try:
@@ -1500,12 +1797,11 @@ def main(): # add a History of some past taken actions and add a time to them
                 target_object = response["target_object"]
                 reasoning = response["reasoning"]
 
-                #past_reasoning = past_reasoning + "reasoning: " + reasoning + "\n"
+                # past_reasoning = past_reasoning + "reasoning: " + reasoning + "\n"
 
                 print(f"Reasoning: {reasoning}")
                 print(f"Next mode: {next_mode}")
                 print(f"Target object: {target_object}")
-                #print(f"Rate: {rated}")
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
@@ -1517,7 +1813,6 @@ def main(): # add a History of some past taken actions and add a time to them
         if next_mode == "SPEECH":
             print("Acquiring a new task...")
             robot_current_task = speech_input()
-            # Add logic to acquire a new task
 
         elif next_mode == "SCAN": #detected_objects_twist is bad coding
             if target_object != "None":
@@ -1553,9 +1848,10 @@ def main(): # add a History of some past taken actions and add a time to them
             print("Navigating to the specified object...")
             navigate_to_point(target_pose=all_found_objects_with_twist[target_object])
 
-            rospy.sleep(30)
+            rospy.sleep(10) # look if it does stop then
+
             send_torso_goal(0.1, 5)
-            time.sleep(2)
+            rospy.sleep(2)
             if target_object != "kitchen":
                 fine_positioning(obj_search=[target_object])
             current_location = target_object  # No specific location
@@ -1563,10 +1859,10 @@ def main(): # add a History of some past taken actions and add a time to them
             detected_objects_no_style = detected_objects
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
 
-        # Process known_objects for the PICKUP mode
         elif next_mode == "PICKUP":
             for obj in detected_objects_no_style:
                 object_name, distance = obj
+
                 # Check if the object is the target and within 1.5 meters
                 if object_name == target_object:
                     if distance <= 1.5:
@@ -1590,12 +1886,11 @@ def main(): # add a History of some past taken actions and add a time to them
             open_gripper()
             break
 
-        else:
+        else: # Handle unexpected mode
             print(f"Unknown mode: {next_mode}")
             parse_error = True
-            # Handle unexpected mode
 
-        # Variables for context
+        # mode
         recent_mode = next_mode
 
         rospy.loginfo("All services have been called in this cycle.")
@@ -1604,6 +1899,7 @@ def main(): # add a History of some past taken actions and add a time to them
 if __name__ == '__main__':
     try:
         # test()
-        main()
+        main_virtual()
+        #main_real()
     except rospy.ROSInterruptException:
         rospy.loginfo("Node terminated.")
