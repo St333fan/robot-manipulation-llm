@@ -31,6 +31,11 @@ import tf2_ros
 import signal
 from sympy.codegen.ast import continue_
 
+# for speech
+import actionlib
+from pal_interaction_msgs.msg import TtsAction, TtsActionGoal
+from actionlib_msgs.msg import GoalID
+
 
 def call_vit_service(question="What happens in the image and what objects can you see? SUPER SHORT ANSWER"):
     try:
@@ -79,7 +84,7 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         img = Image()
         request.image = img
         request.classes = classes
-        request.confidence = 0.05
+        request.confidence = 0.5
         
         response = trigger_service(request)
         rospy.loginfo("Yolo called with response:")
@@ -754,11 +759,41 @@ def speech_input_whisper():
     str = "Bring the Woman a bottle and give it to her"
     return str
 
-def speech_output(question="Give me a Task?"):
+def speech_output(question="Give me a Task?", lang_id='en_US', section='', key='', wait_before_speaking=0.0):
+    # Create a publisher for the /tts/goal topic
+    pub = rospy.Publisher('/tts/goal', TtsActionGoal, queue_size=10)
+
+    # Create the message
+    tts_goal = TtsActionGoal()
+
+    # Set header
+    tts_goal.header = Header()
+    tts_goal.header.seq = 0
+    tts_goal.header.stamp = rospy.Time.now()
+    tts_goal.header.frame_id = ''
+
+    # Set goal ID
+    tts_goal.goal_id = GoalID()
+    tts_goal.goal_id.stamp = rospy.Time.now()
+    tts_goal.goal_id.id = ''
+
+    tts_goal.goal.text.section = ''
+    tts_goal.goal.text.key = ''
+    tts_goal.goal.text.lang_id = ''
+    tts_goal.goal.rawtext.text = question
+    tts_goal.goal.rawtext.lang_id = lang_id
+    tts_goal.goal.wait_before_speaking = wait_before_speaking
+
+    # Publish the message
+    rospy.sleep(1)  # Small delay to ensure connection
+    pub.publish(tts_goal)
+
+    rospy.loginfo(f"Published TTS goal: {question}")
     print(question)
 
 def speech_input_vit_llm():
     print("start speech_input_vit_llm")
+
     str = ""
     parse_error = False
     get_speech = "yes"
@@ -816,7 +851,7 @@ def speech_input_vit_llm():
                 reasoning = response["reasoning"]
                 get_speech = response["speech"]
                 get_attention = response["get_attention"]
-                speech_question = response["speech_question"]
+                speech_question = response["question"]
 
             except json.JSONDecodeError as e:
                 print("Error decoding JSON:", e)
@@ -1191,9 +1226,9 @@ def grasp(obj_search=["bottle"]):
     _release_service = rospy.ServiceProxy('/parallel_gripper_left_controller/release', Empty)
     _release_service()
 
-    goal_wbc(object_position_in_base_link.x-0.1, object_position_in_base_link.y, object_position_in_base_link.z)
+    goal_wbc(object_position_in_base_link.x-0.1, object_position_in_base_link.y, object_position_in_base_link.z+0.2)
     time.sleep(2)
-    goal_wbc(object_position_in_base_link.x, object_position_in_base_link.y, object_position_in_base_link.z)
+    goal_wbc(object_position_in_base_link.x, object_position_in_base_link.y, object_position_in_base_link.z+0.2)
     time.sleep(2)
     close_gripper()
 
@@ -1438,14 +1473,19 @@ def main_real():
     rospy.loginfo("Node started and will call services in a loop.")
     all_found_objects_with_twist = {}
     print("Start... \n\n")
+
+    #speech_input_vit_llm()
+    #sys.exit()
     open_gripper()
 
     proc1, proc2 = start_wbc()
     end_wbc(proc1, proc2)
+
     print("wait")
     time.sleep(1)
 
     open_gripper()
+    sys.exit()
     send_torso_goal(0.1, 5)
     time.sleep(2)
     # time.sleep(4)
@@ -1455,8 +1495,8 @@ def main_real():
     # goal_wbc(0.8, 0, 1)
     # time.sleep(10)
 
-    # grasp(obj_search=["bottle"])
-    # sys.exit()
+    grasp(obj_search=["bottle"])
+    sys.exit()
 
     obj = []
     # - for right + for left
@@ -1474,7 +1514,7 @@ def main_real():
     print(all_found_objects_with_twist["bottle"])
 
     navigate_to_point(target_pose=all_found_objects_with_twist["bottle"])
-    rospy.sleep(10)2
+    rospy.sleep(10)
     fine_positioning(obj_search=["bottle"])
     grasp(obj_search=["bottle"])
 
@@ -1899,7 +1939,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
 if __name__ == '__main__':
     try:
         # test()
-        main_virtual()
-        #main_real()
+        #main_virtual()
+        main_real()
     except rospy.ROSInterruptException:
         rospy.loginfo("Node terminated.")
