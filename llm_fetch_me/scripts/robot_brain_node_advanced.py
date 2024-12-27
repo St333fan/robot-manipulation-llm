@@ -84,7 +84,7 @@ def call_yolo_service(classes=["bottle"], with_xy = False):
         img = Image()
         request.image = img
         request.classes = classes
-        request.confidence = 0.5
+        request.confidence = 0.1
         
         response = trigger_service(request)
         rospy.loginfo("Yolo called with response:")
@@ -144,7 +144,7 @@ def scan_environment(task_objects=["bottle","table"]): # add objects taken from 
 
     prompt = "Extract all key objects(mention humans, man, woman also in objects) and environments from the Vision Transformer's scene description. Focus on common objects and spaces in a room."
     context = {"vit_results":vit_results}
-    instructions = "Reason through what would make the most sense which objects/spaces are needed. Convert synonyms to common terms (e.g., 'people' to 'human') ANSWER SHORT"
+    instructions = "Reason through what would make the most sense which objects/spaces are needed. Convert synonyms to common terms (e.g., woman/man to human) ANSWER SHORT"
     expected_response={
         "reasoning": "brief_explanation",
         "detect_objects": "[\"relevant_objects_and_humans\"]",
@@ -588,7 +588,7 @@ def navigate_to_point(target_pose=PoseStamped(), buffer_distance=0.5):
         vector_to_target = target_point - robot_position
         distance_to_target = np.linalg.norm(vector_to_target)
 
-        buffer_distance = 0.4  # for testing
+        # buffer_distance = 0.4  # for testing
 
         if distance_to_target > buffer_distance:
             # Shorten the distance by buffer_distance
@@ -714,7 +714,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
     rate.sleep()
     start_time = time.time()
     while not rospy.is_shutdown():
-        if time.time() - start_time > 30:  # Break loop if 30 seconds have passed
+        if time.time() - start_time > 60:  # Break loop if 30 seconds have passed
             print("Timeout reached. Exiting loop.")
             break
 
@@ -736,15 +736,16 @@ def fine_positioning(obj_search=["Coca Cola can"]):
                         obj_name, distance, x, y = obj
                         if obj_name in obj_search :#and (distance < 1.6 or math.isnan(distance)):
                             if x < 230:
-                                rotate_cmd.angular.z = 0.1
+                                rotate_cmd.angular.z = 0.2
                             elif x > 410:
-                                rotate_cmd.angular.z = -0.1
+                                rotate_cmd.angular.z = -0.2
                             else:
                                 pub.publish(stop_cmd)  # Send stop command
                                 return True  # Exit once the object is found within range
-                            rate = rospy.Rate(3)  # 3 Hz control loop
+                            rate = rospy.Rate(1)  # 3 Hz control loop
                             # Publish rotation command
                             pub.publish(rotate_cmd)
+
                             rate.sleep()
 
         # Continue rotating if object not found
@@ -756,7 +757,7 @@ def fine_positioning(obj_search=["Coca Cola can"]):
 
 def speech_input_whisper():
     str = ""
-    str = "Bring the Woman a bottle and give it to her"
+    str = "Bring a human a bottle and give it to him"
     return str
 
 def speech_output(question="Give me a Task?", lang_id='en_US', section='', key='', wait_before_speaking=0.0):
@@ -858,11 +859,12 @@ def speech_input_vit_llm():
                 parse_error = True
                 continue
 
-        if get_speech == "yes":
+        if get_speech == "yes" or get_speech == "Yes":
             speech_output(question=speech_question)
             str = speech_input_whisper()
             break
-        if get_attention == "yes":
+            
+        if get_attention == "yes" or get_attention == "Yes":
             speech_output(question=speech_question)
             continue
     return str
@@ -1062,11 +1064,16 @@ def goal_wbc(x, y, z):
     pose_msg.pose.position.x = x
     pose_msg.pose.position.y = y
     pose_msg.pose.position.z = z
-    pose_msg.pose.orientation.x = 0.7071068
+    pose_msg.pose.orientation.x = -0.6427876
     pose_msg.pose.orientation.y = 0.0
     pose_msg.pose.orientation.z = 0.0
-    pose_msg.pose.orientation.w = 0.7071068
+    pose_msg.pose.orientation.w = 0.7660444
 
+    #pose_msg.pose.orientation.x = -0.7071068
+    #pose_msg.pose.orientation.y = 0.0
+    #pose_msg.pose.orientation.z = 0.0
+    #pose_msg.pose.orientation.w = 0.7071068
+    
     # Publish the pose multiple times to ensure the controller receives it
     rate = rospy.Rate(10)  # 10 Hz
     for _ in range(10):
@@ -1226,7 +1233,7 @@ def grasp(obj_search=["bottle"]):
     _release_service = rospy.ServiceProxy('/parallel_gripper_left_controller/release', Empty)
     _release_service()
 
-    goal_wbc(object_position_in_base_link.x-0.1, object_position_in_base_link.y, object_position_in_base_link.z+0.2)
+    goal_wbc(object_position_in_base_link.x-0.2, object_position_in_base_link.y, object_position_in_base_link.z+0.2)
     time.sleep(2)
     goal_wbc(object_position_in_base_link.x, object_position_in_base_link.y, object_position_in_base_link.z+0.2)
     time.sleep(2)
@@ -1236,7 +1243,7 @@ def grasp(obj_search=["bottle"]):
     _grasp_service = rospy.ServiceProxy('/parallel_gripper_left_controller/grasp', Empty)
     _grasp_service()
 
-    goal_wbc(0.3, -0.3, 1)
+    goal_wbc(0.3, -0.3, 1.3)
     
     end_wbc(proc1, proc2)
     #close_gripper()
@@ -1485,22 +1492,25 @@ def main_real():
     time.sleep(1)
 
     open_gripper()
-    sys.exit()
+    #sys.exit()
     send_torso_goal(0.1, 5)
     time.sleep(2)
     # time.sleep(4)
+    #fine_positioning(["bottle"])
+    #sys.exit()
 
     # start_wbc()
     # time.sleep(10)
     # goal_wbc(0.8, 0, 1)
     # time.sleep(10)
 
-    grasp(obj_search=["bottle"])
-    sys.exit()
+    #grasp(obj_search=["bottle"])
+    #sys.exit()
 
     obj = []
     # - for right + for left
     # obj.extend(scan_environment())  # use extend and not append
+    """
     detected_objects = call_yolo_service(["bottle"])
 
     print(detected_objects)
@@ -1513,31 +1523,31 @@ def main_real():
         all_found_objects_with_twist.update(find_object_pose(detected_objects))
     print(all_found_objects_with_twist["bottle"])
 
-    navigate_to_point(target_pose=all_found_objects_with_twist["bottle"])
+    navigate_to_point(target_pose=all_found_objects_with_twist["bottle"], buffer_distance=0.5)
     rospy.sleep(10)
     fine_positioning(obj_search=["bottle"])
     grasp(obj_search=["bottle"])
 
     sys.exit()
-
+    
     print("Scanning the environment...")
-    detected_objects, detected_objects_twist = scan_environment_pipeline(goal1=-90, goal2=90)  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+    detected_objects, detected_objects_twist = scan_environment_pipeline(goal1=45, goal2=-90)  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
     print(detected_objects)
     # Transform the data to match the required style
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
     print(detected_objects)
     sys.exit()
-
+    """
     mode_feedback = ""
     is_start = True
 
     # Define variables for different sections
     modes = {
-        "SPEECH": "Only possible nearby a Human below 2m distance",
+        "SPEECH": "Only possible nearby a Human below 1.5m distance",
         "SCAN": "Scan environment fo find known_objects",
         "NAVIGATE": "Move to known_objects",
         "PICKUP": "Grab known_object, needs to be below 1.5m distance",
-        "PLACE": "Put down holding_object"
+        "PLACE": "Put down holding_object, needs to be below 1.5m distance at wished location"
     }
 
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
@@ -1546,7 +1556,7 @@ def main_real():
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "None or navigation or specific_scan_object",  # if_navigation_needed
+        "target_object": "None or navigation_specific_object"#"None or navigation or specific_scan_object",  # if_navigation_needed
     }
 
     # Variables for context
@@ -1603,7 +1613,8 @@ def main_real():
                 next_mode = response["next_mode"]
                 target_object = response["target_object"]
                 reasoning = response["reasoning"]
-
+                
+                speech_output(question=reasoning)
                 # past_reasoning = past_reasoning + "reasoning: " + reasoning + "\n"
 
                 print(f"Reasoning: {reasoning}")
@@ -1618,16 +1629,15 @@ def main_real():
             print("No JSON object found in the response.")
 
         if next_mode == "SPEECH":
-
-
             print("Acquiring a new task...")
-            robot_current_task = speech_input()
+            robot_current_task = speech_input_vit_llm()
 
         elif next_mode == "SCAN":  # detected_objects_twist is bad coding
             if target_object != "None":
                 print("Scanning the environment for specific object")
                 if False or fine_positioning(obj_search=[target_object]):
-                    objs_scan = call_yolo_service(detect_objects)
+                    objs_scan = call_yolo_service([target_object])
+                    #objs_scan = call_yolo_service(detect_objects)
 
                     dec_obj = [[obj[0], f"{obj[1]}m away"] for obj in objs_scan]
                     detected_objects.append(dec_obj)
@@ -1639,7 +1649,7 @@ def main_real():
                     continue
 
             print("Scanning the environment...")
-            detected_objects, detected_objects_twist = scan_environment_pipeline()  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
+            detected_objects, detected_objects_twist = scan_environment_pipeline(goal1=60, goal2=-100)  # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
 
             # Transform the data to match the required style
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
@@ -1655,7 +1665,7 @@ def main_real():
         elif next_mode == "NAVIGATE":  # make a difference from space to object, cant drive to near to space but can
             # drive near to object
             print("Navigating to the specified object...")
-            navigate_to_point(target_pose=all_found_objects_with_twist[target_object])
+            navigate_to_point(target_pose=all_found_objects_with_twist[target_object], buffer_distance=0.6)
 
             rospy.sleep(10)  # look if it does stop then
 
@@ -1704,6 +1714,7 @@ def main_real():
         rospy.loginfo("All services have been called in this cycle.")
         rate.sleep()
 
+# stell die 0.2 height zurück, buffer_distance for point back .4, also in fine_positioning change rate    grasp roation is changed
 def main_virtual(): # add a History of some past taken actions and add a time to them
     rospy.init_node('prefrontal_cortex_node', anonymous=True)
     # Initialize the ROS node
@@ -1731,6 +1742,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
     #sys.exit()
 
     obj = []
+    """
     # - for right + for left
     #obj.extend(scan_environment())  # use extend and not append
     detected_objects = call_yolo_service(["bottle"])
@@ -1751,8 +1763,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
     grasp(obj_search=["bottle"])
 
     sys.exit()
-
-
+    
 
     print("Scanning the environment...")
     detected_objects, detected_objects_twist = scan_environment_pipeline() # [["Human","5"], ["Beer","8"], ["Kitchen","5"]...]
@@ -1761,17 +1772,18 @@ def main_virtual(): # add a History of some past taken actions and add a time to
     detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
     print(detected_objects)
     sys.exit()
-
+    """
 
     mode_feedback = ""
     is_start = True
 
+    # Define variables for different sections
     modes = {
-        "SPEECH": "Only possible nearby a Human below 2m distance",
+        "SPEECH": "Only possible nearby a Human below 1.5m distance",
         "SCAN": "Scan environment fo find known_objects",
         "NAVIGATE": "Move to known_objects",
         "PICKUP": "Grab known_object, needs to be below 1.5m distance",
-        "PLACE": "Put down holding_object"
+        "PLACE": "Put down holding_object, needs to be below 1.5m distance at wished location"
     }
 
     prompt = "You control a robot by selecting its next operating mode based on the current context. **You try to do the task that is mentioned**"
@@ -1780,11 +1792,12 @@ def main_virtual(): # add a History of some past taken actions and add a time to
     expected_response = {
         "reasoning": "brief_explanation_based_on_the_task",
         "next_mode": "selected_mode",
-        "target_object": "None or navigation or specific_scan_object",  # if_navigation_needed
+        "target_object": "None or navigation_specific_object"
+        # "None or navigation or specific_scan_object",  # if_navigation_needed
     }
 
     # Variables for context
-    robot_current_task = "Find a human an ask him"
+    robot_current_task = "Find a human and ask him"
     recent_mode = "None"  # Empty history
     detected_objects = [["None", "None"]]  # Empty known objects list
     current_location = "not_near_any_object"  # No specific location
@@ -1852,7 +1865,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
 
         if next_mode == "SPEECH":
             print("Acquiring a new task...")
-            robot_current_task = speech_input()
+            robot_current_task = speech_input_whisper()
 
         elif next_mode == "SCAN": #detected_objects_twist is bad coding
             if target_object != "None":
@@ -1899,7 +1912,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
             detected_objects_no_style = detected_objects
             detected_objects = [[obj[0], f"{obj[1]}m away"] for obj in detected_objects]
 
-        elif next_mode == "PICKUP":
+        elif next_mode == "PICKUP": # grasp deactivated for testing
             for obj in detected_objects_no_style:
                 object_name, distance = obj
 
@@ -1907,7 +1920,7 @@ def main_virtual(): # add a History of some past taken actions and add a time to
                 if object_name == target_object:
                     if distance <= 1.5:
                         # Object is nearby, attempt to grasp
-                        grasp(obj_search=[target_object])
+                        # grasp(obj_search=[target_object])
                         current_held_object = target_object
                         print(f"Picking up the {target_object}...")
                         break
@@ -1934,12 +1947,12 @@ def main_virtual(): # add a History of some past taken actions and add a time to
         recent_mode = next_mode
 
         rospy.loginfo("All services have been called in this cycle.")
-        rate.sleep()
+        rate.sleep() # stell die height greifen
 
 if __name__ == '__main__':
     try:
         # test()
-        #main_virtual()
-        main_real()
+        main_virtual()
+        # main_real()
     except rospy.ROSInterruptException:
         rospy.loginfo("Node terminated.")
