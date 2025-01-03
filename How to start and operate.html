@@ -1,0 +1,1053 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>How to start and operate</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 3px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-block;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1.25em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(55, 53, 47, 1);
+}
+.highlight-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.highlight-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.highlight-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.highlight-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.highlight-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.highlight-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.highlight-default_background {
+	color: rgba(55, 53, 47, 1);
+}
+.highlight-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.highlight-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.highlight-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.highlight-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.highlight-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.highlight-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.highlight-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.highlight-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.highlight-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.block-color-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.block-color-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.block-color-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.block-color-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.block-color-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.block-color-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.block-color-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.block-color-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.block-color-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.block-color-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.block-color-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.select-value-color-uiBlue { background-color: rgba(35, 131, 226, .07); }
+.select-value-color-pink { background-color: rgba(245, 224, 233, 1); }
+.select-value-color-purple { background-color: rgba(232, 222, 238, 1); }
+.select-value-color-green { background-color: rgba(219, 237, 219, 1); }
+.select-value-color-gray { background-color: rgba(227, 226, 224, 1); }
+.select-value-color-transparentGray { background-color: rgba(227, 226, 224, 0); }
+.select-value-color-translucentGray { background-color: rgba(0, 0, 0, 0.06); }
+.select-value-color-orange { background-color: rgba(250, 222, 201, 1); }
+.select-value-color-brown { background-color: rgba(238, 224, 218, 1); }
+.select-value-color-red { background-color: rgba(255, 226, 221, 1); }
+.select-value-color-yellow { background-color: rgba(253, 236, 200, 1); }
+.select-value-color-blue { background-color: rgba(211, 229, 239, 1); }
+.select-value-color-pageGlass { background-color: undefined; }
+.select-value-color-washGlass { background-color: undefined; }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="17044d41-915c-8007-8c9b-d6d703e06ffa" class="page sans"><header><h1 class="page-title">How to start and operate</h1><p class="page-description"></p></header><div class="page-body"><p id="17044d41-915c-8084-af23-c96d29fd597f" class="">Setup of the Docker and making the exchange directory is not mentioned here. First start the docker depending on your GPU configuration. Install missing packages and install ollama on your local PC and in the Docker. With tmux start 3 Terminal script after ROS package was build.<br/>1.Terminal —&gt; Virtual TIAGO env<br/>2.Terminal —&gt; AI model inference ROS Services<br/>3.Terminal —&gt; Main ROS Script <br/></p><h2 id="17044d41-915c-8085-8dba-d04e758d8d60" class="">Run Docker</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-802e-afdf-f1090a66959e" class="code"><code class="language-Shell"># check if the disk space is filled up
+docker ps --filter &quot;status=exited&quot;
+docker container prune
+# restarting stopped container
+docker ps -a
+docker start -ai &lt;container_name_or_id&gt;
+
+
+# first terminal
+cd ~/PycharmProjects/tiago/pal_docker_utils/scripts
+# do this in the script foulder
+./pal_docker.sh -it tiago-students /bin/bash
+./pal_docker.sh -it tiago-students-llm /bin/bash
+./pal_docker.sh -it tiago-students-llmv2 /bin/bash
+su user
+./pal_docker_no_gpu.sh -it tiago-students-llmv2 /bin/bash
+
+# shared directory is ~/exchange
+
+# source always new terminal
+source /opt/pal/gallium/setup.bash
+source ~/exchange/lmt_ws/devel/setup.bash
+
+# also id did istall nano and pip
+sudo apt update
+sudo apt install tmux
+tmux new^
+sudo apt-get install lshw
+sudo lshw -C display
+
+# test ollama
+curl -fsSL https://ollama.com/install.sh | sh
+pip install ollama
+
+# second terminal
+docker ps
+docker exec -it quirky_elbakyan /bin/bash
+su user
+
+# build the workspace
+cd ~/exchange/lmt_ws
+catkin_make
+source ~/exchange/lmt_ws/devel/setup.bash
+
+# for the lidar if I dont have dGPU, do this in the roslaunch terminal
+export LIBGL_ALWAYS_SOFTWARE=1
+
+tmux a
+Ctrl + B : # write kill-session</code></pre><h2 id="17044d41-915c-808e-a7c9-fc26651ff541" class="">Mapping</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-806b-bdc8-f89c1668aba7" class="code"><code class="language-Shell">source /opt/pal/gallium/setup.bash
+source ~/exchange/lmt_ws/devel/setup.bash
+export LIBGL_ALWAYS_SOFTWARE=1
+
+# Start with mapping mode
+roslaunch tiago_dual_171_gazebo tiago_dual_mapping.launch world:=pick end_effector_left:=pal-gripper end_effector_right:=pal-gripper
+rosservice call /pal_navigation_sm &quot;input: &#x27;MAP&#x27;&quot;
+# drive around and then save the map
+rosservice call /pal_map_manager/save_map &quot;directory: &#x27;map_1&#x27;&quot;
+
+# If you have map just do ...
+cp -r /home/user/.pal/tiago_dual_maps/configurations/map_real /home/user/exchange/map_real
+cp -r /home/user/exchange/map_1 /home/user/.pal/tiago_dual_maps/configurations</code></pre><h2 id="17044d41-915c-8094-aa62-f56d42ac2296" class="">Navigation and Start ROS Robo</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80a5-af78-f976871e796f" class="code"><code class="language-Shell"># with advanced navigation
+roslaunch tiago_dual_171_gazebo tiago_dual_mapping.launch world:=pick end_effector_left:=pal-gripper end_effector_right:=pal-gripper advanced_navigation:=true
+# mapping rosservice call /pal_map_manager/save_map &quot;directory: &#x27;~/exchange/trsh&#x27;
+roslaunch tiago_dual_171_gazebo tiago_dual_navigation.launch world:=pick end_effector_left:=pal-gripper end_effector_right:=pal-gripper advanced_navigation:=true
+
+###################### or change from mapping into LOC
+rosservice call /pal_navigation_sm &quot;input: &#x27;LOC&#x27;&quot;
+# change to your map
+rosservice call /pal_map_manager/change_map &quot;input: &#x27;/home/user/.pal/tiago_dual_maps/configurations/map_1&#x27;&quot;
+rosservice call /global_localization &quot;{}&quot;
+rosservice call /move_baswde/clear_costmaps &quot;{}&quot;
+
+# drive around
+source ~/exchange/lmt_ws/devel/setup.bash
+rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &quot;header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: &#x27;map&#x27;
+pose:
+  position:
+    x: 3 #2.3
+    y: 2.4 #1.89
+    z: 0.0
+  orientation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0&quot;</code></pre><h2 id="17044d41-915c-8026-b19a-c86b5bc0369c" class="">Start my Code</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-800a-a521-d180e6b5c0d7" class="code"><code class="language-Shell"># place lights in the virtual environment
+# stop head motion before startup, code can be found down there!
+
+roslaunch llm_fetch_me launch_services.launch
+rosrun llm_fetch_me robot_brain_node_advanced.py
+
+
+rosrun llm_fetch_me vit_detector.py
+rosservice call /vit_inference &quot;{question: &#x27;what do you see&#x27;, chat: False, reload: False}&quot;
+
+rosrun llm_fetch_me llm.py
+rosservice call /llm_inference &quot;{question: &#x27;What are you? REALLY SHORT ANSWER&#x27;, chat: False, reload: False}&quot;
+
+rosrun llm_fetch_me yolo_detector.py
+rosservice call /yolo_inference &quot;{
+  image: {
+    header: {
+      seq: 0,
+      stamp: {secs: 0, nsecs: 0},
+      frame_id: &#x27;&#x27;
+    },
+    height: 0,
+    width: 0,
+    encoding: &#x27;&#x27;,
+    is_bigendian: 0,
+    step: 0,
+    data: []
+  }
+}&quot;</code></pre><h2 id="17044d41-915c-806f-a79f-cfaea61f18d9" class="">Tilt-Head Down</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80a5-9ab3-c078a4c9f64e" class="code"><code class="language-Shell">rostopic pub /head_controller/command trajectory_msgs/JointTrajectory &quot;header:
+  seq: 0
+  stamp: {secs: 0, nsecs: 0}
+  frame_id: &#x27;&#x27;
+joint_names: [&#x27;head_1_joint&#x27;, &#x27;head_2_joint&#x27;]
+points:
+- positions: [0.0, 0.0]  # Maintain tilt with head_2_joint
+  time_from_start: {secs: 1, nsecs: 0}&quot; --once</code></pre><h2 id="17044d41-915c-80c0-bc62-cce0b193577c" class="">Torso height</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80bd-8cdb-e9216bdb51fd" class="code"><code class="language-Shell">rostopic pub /torso_controller/command trajectory_msgs/JointTrajectory &quot;header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: &#x27;&#x27;
+joint_names:
+- &#x27;torso_lift_joint&#x27;
+points:
+- positions: [0.2]
+  velocities: []
+  accelerations: []
+  effort: []
+  time_from_start: {secs: 10, nsecs: 0}&quot; --once
+</code></pre><h2 id="17044d41-915c-8069-801d-c9cf2fad234e" class="">Gripper move whole body controller</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80a9-b8f3-c70fad0761dd" class="code"><code class="language-Shell">
+-------------------------------------------------
+---- # disable the controller
+rosservice call /controller_manager/switch_controller &quot;start_controllers:
+- &#x27;&#x27;
+stop_controllers:
+- &#x27;head_controller&#x27;
+- &#x27;arm_left_controller&#x27;
+- &#x27;arm_right_controrller&#x27;
+- &#x27;torso_controller&#x27;
+- &#x27;whole_body_kinematic_controller&#x27;
+strictness: 0&quot;
+# for head movement
+rosservice call /controller_manager/switch_controller &quot;start_controllers:
+- &#x27;&#x27;
+stop_controllers:
+- &#x27;head_controller&#x27;
+strictness: 0&quot;
+rosservice call /controller_manager/switch_controller &quot;start_controllers:
+- &#x27;arm_left_controller&#x27;
+- &#x27;arm_right_controller&#x27;
+- &#x27;torso_controller&#x27;
+stop_controllers:
+- &#x27;whole_body_kinematic_controller&#x27;
+- &#x27;head_controller&#x27;
+strictness: 0&quot;
+rosservice call /controller_manager/switch_controller &quot;start_controllers:
+- &#x27;whole_body_kinematic_controller&#x27;
+stop_controllers:
+- &#x27;head_controller&#x27;
+strictness: 0&quot;
+--------------------------------------------------
+
+rosservice call /controller_manager/unload_controller &quot;name: &#x27;whole_body_kinematic_controller&#x27;&quot;
+
+#two ways, first automatic 
+roslaunch tiago_dual_wbc tiago_dual_wbc.launch
+
+#second, not manual, do also this!!!
+#roslaunch tiago_dual_wbc tiago_dual_wbc.launch spawn:=true # nicht benötigt?
+roslaunch tiago_dual_wbc push_reference_tasks.launch source_data_arm:=topic_reflexx_typeII source_data_gaze:=topic
+
+
+# start then the controller thirs terminal
+rosservice call /controller_manager/switch_controller &quot;start_controllers:
+- &#x27;whole_body_kinematic_controller&#x27;
+stop_controllers:
+- &#x27;&#x27;
+strictness: 0&quot;
+
+## brich das ab wenn er gefahren ist, sonst steckt er gib ihm 6seconds
+# try with x=1 and z=1.5, then x=0.5 and z=1
+rostopic pub /whole_body_kinematic_controller/arm_left_tool_link_goal geometry_msgs/PoseStamped &quot;header:
+  seq: 0
+  stamp: {secs: 0, nsecs: 0}
+  frame_id: &#x27;base_link&#x27;
+pose:
+  position:
+    x: 0.516
+    y: 0.022
+    z: 0.966
+  orientation:
+    x: 0.7071068
+    y: 0.0
+    z: 0.0
+    w: 0.7071068&quot; --once
+rostopic pub /whole_body_kinematic_controller/arm_left_tool_link_goal geometry_msgs/PoseStamped &quot;header:
+  seq: 0
+  stamp: {secs: 0, nsecs: 0}
+  frame_id: &#x27;base_link&#x27;
+pose:
+  position:
+    x: 1.115
+    y: 0.022
+    z: 0.96
+  orientation:
+    x: 0.7071068
+    y: 00.
+    z: 0.0
+    w: 0.7071068&quot; --once
+
+    
+# gripper move funktioniert immer???    
+rostopic pub /parallel_gripper_left_controller/command trajectory_msgs/JointTrajectory &quot;
+header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: &#x27;&#x27;
+joint_names: [&#x27;parallel_gripper_joint&#x27;]
+points:
+  - positions: [1]
+    velocities: []
+    accelerations: []
+    effort: []
+    time_from_start:
+      secs: 1
+      nsecs: 0
+&quot; --once
+
+rostopic pub /whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal geometry_msgs/PoseStamped &quot;
+header:
+  seq: 0
+  stamp:
+      secs: 0
+      nsecs: 0
+  frame_id: &#x27;base_link&#x27;
+pose:
+  position:
+      x: 1.0
+      y: 0.0
+      z: 0.5
+  orientation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      w: 1.0&quot;
+
+rostopic pub /whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal geometry_msgs/PoseStamped &quot;header:
+  seq: 0
+  stamp: 0
+  frame_id: &#x27;base_link&#x27;
+pose:
+  position:
+    x: 1
+    y: 0
+    z: 1.5
+  orientation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0&quot;
+        
+# show the tasks
+rosservice call /whole_body_kinematic_controller/get_stack_description
+
+# head movement
+rostopic pub /whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal \geometry_msgs/PoseStamped &quot;
+header:
+  seq: 0
+  stamp: {secs: 0, nsecs: 0}
+  frame_id: &#x27;base_footprint&#x27;
+pose:
+  position:
+    x: 1
+    y: 0
+    z: 1
+  orientation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1&quot; --once
+
+
+</code></pre><h2 id="17044d41-915c-80b3-90ec-c0d0ceedfb70" class="">Speech</h2><p id="17044d41-915c-804d-af34-ebf0eabdf63a" class=""><a href="https://docs.pal-robotics.com/sdk/23.12/actions/tts.html">https://docs.pal-robotics.com/sdk/23.12/actions/tts.html</a></p><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80dc-acbf-da57d8a2bfd5" class="code"><code class="language-Shell">rostopic pub /tts/goal pal_interaction_msgs/TtsActionGoal &quot;header:
+  seq: 0
+  stamp: {secs: 0, nsecs: 0}
+  frame_id: &#x27;&#x27;
+goal_id:
+  stamp: {secs: 0, nsecs: 0}
+  id: &#x27;&#x27;
+goal:
+  text:
+    section: &#x27;&#x27;
+    key: &#x27;&#x27;
+    lang_id: &#x27;&#x27;
+  rawtext:
+    text: &#x27;Hello, robot!&#x27;
+    lang_id: &#x27;en_US&#x27;
+  wait_before_speaking: 0.0&quot;</code></pre><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-8010-9085-f507fc055712" class="code"><code class="language-Python">#!/usr/bin/env python
+
+import rospy
+import actionlib
+from pal_interaction_msgs.msg import *
+
+
+if __name__ == &quot;__main__&quot;:
+
+    client = actionlib.SimpleActionClient(&quot;/tts&quot;, pal_interaction_msgs.msg.TtsAction)
+    client.wait_for_server()
+
+    # check https://github.com/pal-robotics/pal_msgs/tree/indigo-devel/pal_interaction_msgs/action/Tts.action
+    # for the possible goal parameters
+    goal = pal_interaction_msgs.msg.TtsGoal(param1=..., param2=...)
+
+    client.send_goal(goal)
+    client.wait_for_result()
+
+    rospy.loginfo(&quot;Action returned: %s&quot; % client.get_result())</code></pre><h3 id="17044d41-915c-8052-a310-f0e0048c5297" class="">When Stuck</h3><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-8038-8d8f-c6cbf6086372" class="code"><code class="language-Shell"># stop second terminal and redo from this step
+roslaunch tiago_dual_wbc tiago_dual_wbc.launch
+
+roslaunch tiago_dual_wbc push_reference_tasks.launch source_data_arm:=topic_reflexx_typeII source_data_gaze:=topic
+# then the task</code></pre><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-8093-9626-e0e1d11c6e9b" class="code"><code class="language-Shell">rosservice call /whole_body_kinematic_controller/push_task \
+&quot;push_task_params:
+  params: &#x27;&#x27;
+  respect_task_id: &#x27;&#x27;
+  order:
+  order: 0
+  blend: false&quot;
+roslaunch tiago_dual_wbc push_reference_tasks.launch source_data_arm:=topic_reflexx_typeII source_data_gaze:=topic
+
+
+ssh pal@tiago-0c
+rosservice call /controller_manager/switch_controller &quot;
+stop_controllers:
+- &#x27;head_controller&#x27;
+- &#x27;arm_controller&#x27;
+- &#x27;torso_controller&#x27;
+- &#x27;gravity_compensation_controller&#x27;
+- &#x27;whole_body_kinematic_controller&#x27;
+strictness: 0&quot;
+</code></pre><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80e1-972d-c97d7887aec0" class="code"><code class="language-Shell">roslaunch tiago_dual_171_gazebo tiago_dual_navigation.launch world:=pick advanced_navigation:=true
+
+rosservice call /pal_map_manager/save_map &quot;directory: &#x27;test_t&#x27;&quot;
+
+cp -r /home/user/.pal/tiago_dual_maps/configurations/test_t ~/exchange/</code></pre><h2 id="17044d41-915c-801c-8622-c59ec29f1ca9" class="">Only for Real Robot tiago_dual_2dnav</h2><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="17044d41-915c-80b4-bbec-dd3c65b900d5" class="code"><code class="language-Shell">roslaunch tiago_2dnav mapping.launch
+
+rosrun rviz rviz -d `rospack find tiago_dual_2dnav`/config/rviz/navigation.rviz</code></pre><p id="17044d41-915c-800e-9e99-ecabee8b3a62" class=""><a href="https://gist.github.com/lcastri/4fbbc28c536013b3e7bfe08be653c8a1">https://gist.github.com/lcastri/4fbbc28c536013b3e7bfe08be653c8a1</a></p><p id="17044d41-915c-80aa-abb8-ca8f9e0164e8" class="">Here’s the content formatted for use in Notion:</p><hr id="17044d41-915c-80a5-8c05-d140b9da038e"/><h3 id="17044d41-915c-8086-8bfa-eb6cfbe97c35" class="">1. Mapping</h3><h3 id="17044d41-915c-8004-a68f-f9e1f8da7eb0" class="">1.1 ROBOT</h3><ol type="1" id="17044d41-915c-80ef-bc60-f1f0847dc849" class="numbered-list" start="1"><li><strong>Connect to the robot by SSH:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="3c3c4efa-0078-4acb-805d-889f618a203d" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">ssh pal@tiago-29c
+</code></pre></li></ol><ol type="1" id="17044d41-915c-8083-9f72-f03d6bb0099b" class="numbered-list" start="2"><li><strong>Set the robot in mapping mode:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="38bb808e-5231-4251-a083-b79ecfb69a2a" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosservice call /pal_navigation_sm &quot;input: &#x27;MAP&#x27;&quot;
+#rosservice call /pal_navigation_sm &quot;input: &#x27;map_real&#x27;&quot;
+</code></pre></li></ol><ol type="1" id="17044d41-915c-80de-b366-f56d26d0c2c2" class="numbered-list" start="3"><li><strong>Launch the mapping launch file:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="a3dc3015-a5b0-4ec6-b161-26db3e157fdd" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">roslaunch tiago_dual_2dnav mapping.launch
+</code></pre></li></ol><h3 id="17044d41-915c-8051-959a-c337928ba597" class="">1.2 LOCAL PC</h3><ol type="1" id="17044d41-915c-804d-b814-d9f8f2cd24a8" class="numbered-list" start="1"><li><strong>Launch RViz:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="8e6ab28c-151a-4813-94b2-43abf5e8d66a" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosrun rviz rviz -d `rospack find tiago_dual_2dnav`/config/rviz/navigation.rviz
+</code></pre></li></ol><ol type="1" id="17044d41-915c-8023-9697-c7e27f57d999" class="numbered-list" start="2"><li><strong>Move the robot to create the map:</strong><br/>Open a new terminal and execute the following command:<br/><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="5fed1599-58c6-4c9c-967f-83a7da44ccb2" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosrun teleop_twist_keyboard teleop_twist_keyboard.py /cmd_vel:=/mobile_base_controller/cmd_vel
+</code></pre></li></ol><h3 id="17044d41-915c-80be-979f-cb3055002438" class="">1.3 ROBOT</h3><ol type="1" id="17044d41-915c-8073-8d4a-f972cf06be4d" class="numbered-list" start="1"><li><strong>Save the completed map on the local PC:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="a8e3ebee-ec7f-4067-96ec-678ea530138a" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosservice call /pal_map_manager/save_map &quot;directory: &#x27;map_real&#x27;&quot;
+</code></pre><ul id="a217db61-ad8c-4418-91b6-397178cfec87" class="bulleted-list"><li style="list-style-type:disc">Replace <code>MAP_NAME</code> with the desired map name.</li></ul></li></ol><ol type="1" id="17044d41-915c-80ba-bcd3-f8e3b76d8fa4" class="numbered-list" start="2"><li><strong>Saved map location:</strong><p id="0af4f172-24a9-4b0a-9a46-170aead6b4dc" class="">The map will be saved in:</p><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="9c305007-f214-4c65-9fbc-244c4c2aaeda" class="code"><code class="language-Plain Text" style="white-space:pre-wrap;word-break:break-all">$HOME/.pal/tiago_maps/configurations
+</code></pre></li></ol><hr id="17044d41-915c-80c0-bc04-ebed565ed57e"/><h3 id="17044d41-915c-80ba-9f60-dd3b4ff1b10a" class="">2. Navigation</h3><ol type="1" id="17044d41-915c-80ae-9847-e3162afeb1c8" class="numbered-list" start="1"><li><strong>Load the correct map:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="d4b662e5-0082-4fd1-bfe8-846e37b9f6c3" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosservice call /pal_map_manager/change_map &quot;input: &#x27;map_real&#x27;&quot;
+</code></pre><ul id="4b11de04-a99a-4310-85bc-11f7689f975f" class="bulleted-list"><li style="list-style-type:disc">Replace <code>MAP_NAME</code> with the desired map name.</li></ul></li></ol><ol type="1" id="17044d41-915c-80ab-9846-f7510f07eb90" class="numbered-list" start="2"><li><strong>Set the robot in navigation mode:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="1fe20c8f-a514-4bac-ba22-990805199b09" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosservice call /pal_navigation_sm &quot;input: &#x27;LOC&#x27;&quot;
+</code></pre></li></ol><ol type="1" id="17044d41-915c-800c-bdb1-dcb9780acd04" class="numbered-list" start="3"><li><strong>Launch RViz:</strong><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="425b98b4-d777-4b11-abad-5268f5f44b22" class="code"><code class="language-Shell" style="white-space:pre-wrap;word-break:break-all">rosrun rviz rviz -d `rospack find tiago_dual_2dnav`/config/rviz/navigation.rviz
+
+&quot;When you want to drive deactivate the driving from controller&quot;
+</code></pre></li></ol><ol type="1" id="17044d41-915c-80d9-b2c0-d29d22d600c0" class="numbered-list" start="4"><li><strong>Navigation:</strong><p id="7123e6b5-2008-4f22-b573-c6c53328648e" class="">The robot can now navigate using the RViz command.</p></li></ol></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>
