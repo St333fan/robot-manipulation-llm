@@ -12,7 +12,6 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 ```
 # source
 source /opt/pal/gallium/setup.bash
-source ~/exchange/lmt_ws/devel/setup.bash
 
 # build the workspace
 cd ~/exchange/lmt_ws
