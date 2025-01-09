@@ -3,7 +3,7 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 
 ## Setup
 - Set up a Tiago Docker; supplied by [Pal-Robotics](https://docs.pal-robotics.com/sdk-dev/development/docker-public) for the barebone or ask me for the final docker image. 
-- create a catkin workspace **lmt_ws** in the **exchange** directory
+- create a ROS catkin workspace **lmt_ws** in the **exchange** directory
 - create packages [llm_fetch_me](./llm_fetch_me) and [custom_msg_srv](./custom_msg_srv) and copy the GIT data into it
 - install the ollama package on the PC outside the Docker and download a model; Ollama communicates with the Docker over the internet ports. (CUDA does not work inside the docker)
 
