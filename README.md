@@ -10,7 +10,7 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 
 ## Starting the Pipeline
 ```
-# source always new terminal
+# source
 source /opt/pal/gallium/setup.bash
 source ~/exchange/lmt_ws/devel/setup.bash
 
@@ -21,8 +21,15 @@ source ~/exchange/lmt_ws/devel/setup.bash
 
 # when the lidar does not work in the virtual environment
 export LIBGL_ALWAYS_SOFTWARE=1
+```
+```
+# create a tmux terminal
+tmux new
+
+# start virtual env
 
 ```
+
 
 ## For Debugging when problems arise with the Robot in virtual or real environment
 Please open the the html file in the Browser, it is the best way to view it. There is a lot of information in it thanks! [File](./How_to_start_and_operate.html)
