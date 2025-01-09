@@ -25,18 +25,18 @@ export LIBGL_ALWAYS_SOFTWARE=1
 # create a tmux terminal
 tmux new
 
-# start virtual env, it will open GAZEBO and RVIZ
+# start virtual env, it will open GAZEBO and RVIZ; Place a human into the left corner, perspective seen from robot camera
 roslaunch tiago_dual_171_gazebo tiago_dual_navigation.launch world:=pick end_effector_left:=pal-gripper end_effector_right:=pal-gripper advanced_navigation:=true
 
 # lodad map for LIDAR localisation
 rosservice call /pal_navigation_sm "input: 'LOC'"
 
-# change to your map, copy git map into correct folder
+# Change to your map, copy the map from GIT into the correct folder
 rosservice call /pal_map_manager/change_map "input: '/home/user/.pal/tiago_dual_maps/configurations/map_1'"
 rosservice call /global_localization "{}"
 rosservice call /move_baswde/clear_costmaps "{}"
 
-# starting the LLM, ViT and YOLO, in new tmux window with (Strg + B C)
+# starting the LLM, ViT and YOLO, in new tmux window with (Strg + B C); windows can be switched with (Strg + B W)
 roslaunch llm_fetch_me launch_services.launch
 
 # starting pipeline, in new tmux window with (Strg + B C)
