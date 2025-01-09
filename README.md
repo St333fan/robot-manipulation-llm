@@ -43,9 +43,8 @@ roslaunch llm_fetch_me launch_services.launch
 # starting pipeline, in new tmux window with (Strg + B C)
 rosrun llm_fetch_me robot_brain_node_advanced.py
 
-
 ```
 
-### Starting the real Pipeline, it is really buggy and there is no clear way to start it. All important information is in the next Section
+### Starting the real Pipeline is really buggy and there is no clear way to start it. All important informations are in the next Section. 
 ## For Debugging when problems arise with the Robot in virtual or real environment
 Please open the the html file in the Browser, it is the best way to view it. There is a lot of information in it thanks! [File](./How_to_start_and_operate.html)
