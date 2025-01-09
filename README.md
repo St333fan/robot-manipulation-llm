@@ -8,8 +8,8 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 - create a ROS catkin workspace **lmt_ws** in the **exchange** directory
 - create packages [llm_fetch_me](./llm_fetch_me) and [custom_msg_srv](./custom_msg_srv) and copy the data from the GIT into it
 
-## Starting the Pipeline
-```
+## Starting the virtual Pipeline
+```bash
 # source
 source /opt/pal/gallium/setup.bash
 
@@ -21,7 +21,8 @@ source ~/exchange/lmt_ws/devel/setup.bash
 # when the lidar does not work in the virtual environment
 export LIBGL_ALWAYS_SOFTWARE=1
 ```
-```
+after sourcing... when some bash lines do not work re-source in the additional tmux windows 
+```bash
 # create a tmux terminal
 tmux new
 
@@ -45,6 +46,6 @@ rosrun llm_fetch_me robot_brain_node_advanced.py
 
 ```
 
-
+### Starting the real Pipeline, it is really buggy and there is no clear way to start it. All important information is in the next Section
 ## For Debugging when problems arise with the Robot in virtual or real environment
 Please open the the html file in the Browser, it is the best way to view it. There is a lot of information in it thanks! [File](./How_to_start_and_operate.html)
