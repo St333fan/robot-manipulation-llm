@@ -2,9 +2,10 @@
 This implementation allows the Tiago Robot to autonomously reason through a fetching task; by utilising compact LLMs! 
 
 ## Setup
+- Use a GPU with at least 16GB VRAM, else the pipeline runs slow, only using a CPU is not recommended except it is really strong
 - Set up a Tiago Docker, supplied by [Pal-Robotics](https://docs.pal-robotics.com/sdk-dev/development/docker-public) for the barebone, or ask me for the updated Docker image.
 - install the ollama package on the PC outside the Docker and download a model; Ollama communicates with the Docker over the internet access point. (CUDA does not work inside the docker) ```ollama pull gemma2:9b-instruct-q8_0```
-- Used VIT minicpm-v:8b
+- VIT ```ollama pull minicpm-v:8b```
 - start the docker with **pal_docker.sh** when a GPU is available or **pal_docker_no_gpu.sh** if not
 - create a ROS catkin workspace **lmt_ws** in the **exchange** directory
 - create packages [llm_fetch_me](./llm_fetch_me) and [custom_msg_srv](./custom_msg_srv) and copy the data from the GIT into it
