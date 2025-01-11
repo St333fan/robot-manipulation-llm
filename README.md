@@ -8,10 +8,19 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 - LLM ```ollama pull gemma2:9b-instruct-q8_0```
 - VIT ```ollama pull minicpm-v:8b```
 - start the docker with **pal_docker.sh** when a GPU is available or **pal_docker_no_gpu.sh** if not
+  After setting up the pal docker environment, the docker can be started with 
+```bash
+# copy the .sh into the docker setup directory, you docker may not be named tiago-students
+./pal_docker.sh -it tiago-students /bin/bash
+
+pip install ollama tmux ultralytics nano
+``` 
+
 - create a ROS catkin workspace **lmt_ws** in the **exchange** directory
 - create packages [llm_fetch_me](./llm_fetch_me) and [custom_msg_srv](./custom_msg_srv) and copy the data from the GIT into it
 
 ## Starting the virtual Pipeline
+
 ```bash
 # source
 source /opt/pal/gallium/setup.bash
