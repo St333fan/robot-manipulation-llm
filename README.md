@@ -7,11 +7,12 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 - install the ollama package on the PC outside the Docker and download a model; Ollama communicates with the Docker over the internet access point. (CUDA does not work inside the docker)
 - LLM ```ollama pull gemma2:9b-instruct-q8_0```
 - VIT ```ollama pull minicpm-v:8b```
-- start the docker with **pal_docker.sh** when a GPU is available or **pal_docker_no_gpu.sh** if not
+- start the docker with **pal_docker.sh** when a GPU is available/compatibel or **pal_docker_no_gpu.sh** if not
+- **pal_docker_no_gpu.sh** is recommended, the GPU (for AI) can be used in the Docker because of Ollama. But the Docker does not have GPU acceleration for the simulation.
 - After setting up the pal docker environment, the docker can be started with 
 ```bash
 # copy the .sh into the docker setup directory, your docker may not be named tiago-students
-./pal_docker.sh -it tiago-students /bin/bash
+./pal_docker_no_gpu.sh -it tiago-students /bin/bash
 # install basic packages
 pip install ollama tmux ultralytics nano
 ``` 
