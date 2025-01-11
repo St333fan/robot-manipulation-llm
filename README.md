@@ -12,7 +12,7 @@ This implementation allows the Tiago Robot to autonomously reason through a fetc
 ```bash
 # copy the .sh into the docker setup directory, your docker may not be named tiago-students
 ./pal_docker.sh -it tiago-students /bin/bash
-
+# install basic packages
 pip install ollama tmux ultralytics nano
 ``` 
 
