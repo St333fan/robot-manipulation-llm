@@ -10,7 +10,7 @@ MAIN LLM INSTANCE:
    "PLACE": "Put down holding_object, needs to be below 1.5m distance at wished location"
   },
   "task": "Find a human and ask him",
-  "modes_history": "None",
+  "last_mode": "None",
   "known_objects": [
    [
     "None",
